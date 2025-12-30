@@ -19,6 +19,7 @@ type IncomingItem = {
   image?: string;
   category?: string;
   status?: string;
+  publishedNewsId?: string | null;
   rewrite?: {
     title?: string;
     excerpt?: string;
@@ -281,13 +282,15 @@ const NewsModulePage: React.FC = () => {
     setStatusMessage(null);
   };
 
-  const updateIncomingStatus = async (id: string, status: string) => {
+  const updateIncomingStatus = async (id: string, status: string, publishedNewsId?: string) => {
     setIsBusy(true);
     setStatusMessage(null);
     try {
+      const payload: Record<string, string> = { id, status };
+      if (publishedNewsId) payload.publishedNewsId = publishedNewsId;
       const res = await apiFetch(`${API_INCOMING}?action=set_status`, {
         method: 'POST',
-        body: JSON.stringify({ id, status }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (!res.ok || !data.ok) throw new Error(data?.error || 'Ошибка');
@@ -402,23 +405,26 @@ const NewsModulePage: React.FC = () => {
       isFeatured: base?.isFeatured,
       pinnedNowReading: base?.pinnedNowReading,
       pinnedNowReadingRank: base?.pinnedNowReadingRank,
+      sourceIncomingId: base?.sourceIncomingId,
     } as Article;
   };
 
   const saveDraftFromIncoming = async (publish: boolean) => {
     if (!editorDraft || !editor || editor.mode !== 'incoming') return;
-    const base = buildArticleFromDraft();
+    const incomingItem = editor.item as IncomingItem;
+    const base = buildArticleFromDraft({ sourceIncomingId: incomingItem.id } as Article);
     const article = {
       ...base,
       status: publish ? 'published' : 'draft',
       publishedAt: publish ? new Date().toISOString() : base.publishedAt,
+      sourceIncomingId: incomingItem.id,
     } as Article;
 
     const next = [article, ...newsItems.filter((n) => n.id !== article.id)];
     await saveNewsItems(next);
 
     if (publish) {
-      await updateIncomingStatus((editor.item as IncomingItem).id, 'published');
+      await updateIncomingStatus(incomingItem.id, 'published', article.id);
     }
   };
 

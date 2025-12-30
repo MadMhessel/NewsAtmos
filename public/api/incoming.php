@@ -11,45 +11,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 require_once __DIR__ . '/_auth.php';
+require_once __DIR__ . '/lib_json.php';
 
 $dataDir = __DIR__ . '/data';
 $incomingPath = $dataDir . '/incoming.json';
-
-function ensure_data_dir($dir) {
-  if (is_dir($dir)) return true;
-  return mkdir($dir, 0755, true);
-}
-
-function read_json_file($path) {
-  if (!file_exists($path)) return [];
-  $raw = file_get_contents($path);
-  if ($raw === false || trim($raw) === '') return [];
-  $data = json_decode($raw, true);
-  return is_array($data) ? $data : [];
-}
-
-function write_json_file($path, $data) {
-  $json = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
-  if ($json === false) return false;
-  $dir = dirname($path);
-  if (!ensure_data_dir($dir)) return false;
-  $tmp = $path . '.tmp';
-  $ok = file_put_contents($tmp, $json, LOCK_EX);
-  if ($ok === false) return false;
-  return rename($tmp, $path);
-}
-
-function now_utc_iso() {
-  $dt = new DateTime('now', new DateTimeZone('UTC'));
-  return $dt->format('c');
-}
 
 $method = $_SERVER['REQUEST_METHOD'];
 $action = isset($_GET['action']) ? $_GET['action'] : '';
 
 if ($method === 'GET') {
   if ($action === 'list') {
-    $items = read_json_file($incomingPath);
+    $items = read_json($incomingPath, []);
     $list = [];
     foreach ($items as $item) {
       $list[] = [
@@ -65,6 +37,7 @@ if ($method === 'GET') {
         'status' => isset($item['status']) ? $item['status'] : null,
         'category' => isset($item['category']) ? $item['category'] : null,
         'image' => isset($item['image']) ? $item['image'] : null,
+        'publishedNewsId' => isset($item['publishedNewsId']) ? $item['publishedNewsId'] : null,
       ];
     }
     echo json_encode($list, JSON_UNESCAPED_UNICODE);
@@ -78,7 +51,7 @@ if ($method === 'GET') {
       echo json_encode(['ok' => false, 'error' => 'Не указан id'], JSON_UNESCAPED_UNICODE);
       exit;
     }
-    $items = read_json_file($incomingPath);
+    $items = read_json($incomingPath, []);
     foreach ($items as $item) {
       if (isset($item['id']) && (string)$item['id'] === $id) {
         echo json_encode($item, JSON_UNESCAPED_UNICODE);
@@ -97,7 +70,7 @@ if ($method === 'GET') {
 
 if ($method === 'POST') {
   if ($action === 'set_status') {
-    require_admin_token();
+    require_admin();
 
     $raw = file_get_contents('php://input');
     $payload = json_decode($raw, true);
@@ -115,12 +88,15 @@ if ($method === 'POST') {
       exit;
     }
 
-    $items = read_json_file($incomingPath);
+    $items = read_json($incomingPath, []);
     $found = false;
     $now = now_utc_iso();
     foreach ($items as $idx => $item) {
       if (isset($item['id']) && (string)$item['id'] === $id) {
         $items[$idx]['status'] = $status;
+        if (isset($payload['publishedNewsId'])) {
+          $items[$idx]['publishedNewsId'] = $payload['publishedNewsId'];
+        }
         $items[$idx]['updatedAt'] = $now;
         $found = true;
         break;
@@ -133,7 +109,7 @@ if ($method === 'POST') {
       exit;
     }
 
-    if (!write_json_file($incomingPath, $items)) {
+    if (!write_json_atomic($incomingPath, $items)) {
       http_response_code(500);
       echo json_encode(['ok' => false, 'error' => 'Не удалось сохранить файл (права доступа?)'], JSON_UNESCAPED_UNICODE);
       exit;
@@ -144,7 +120,7 @@ if ($method === 'POST') {
   }
 
   if ($action === 'upsert') {
-    require_admin_token();
+    require_admin();
 
     $raw = file_get_contents('php://input');
     $payload = json_decode($raw, true);
@@ -161,7 +137,7 @@ if ($method === 'POST') {
       exit;
     }
 
-    $items = read_json_file($incomingPath);
+    $items = read_json($incomingPath, []);
     $now = now_utc_iso();
     $foundIndex = null;
 
@@ -186,7 +162,7 @@ if ($method === 'POST') {
       $items[$foundIndex] = $payload;
     }
 
-    if (!write_json_file($incomingPath, $items)) {
+    if (!write_json_atomic($incomingPath, $items)) {
       http_response_code(500);
       echo json_encode(['ok' => false, 'error' => 'Не удалось сохранить файл (права доступа?)'], JSON_UNESCAPED_UNICODE);
       exit;
@@ -200,6 +176,3 @@ if ($method === 'POST') {
   echo json_encode(['ok' => false, 'error' => 'Неизвестное действие'], JSON_UNESCAPED_UNICODE);
   exit;
 }
-
-http_response_code(405);
-echo json_encode(['ok' => false, 'error' => 'Метод не поддерживается'], JSON_UNESCAPED_UNICODE);
