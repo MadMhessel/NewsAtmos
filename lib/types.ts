@@ -60,4 +60,5 @@ export type Article = {
   facts?: string[]; // "Что известно на сейчас"
   timeline?: { time: string; text: string }[];
   relatedIds?: string[];
+  sourceIncomingId?: string;
 };

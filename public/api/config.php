@@ -11,6 +11,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 require_once __DIR__ . '/_auth.php';
+require_once __DIR__ . '/lib_json.php';
 
 $path = __DIR__ . '/data/config.json';
 
@@ -25,8 +26,15 @@ function default_config() {
       ['slug' => 'society', 'title' => 'Общество'],
       ['slug' => 'economy', 'title' => 'Экономика'],
     ],
+    'pollIntervalMinutes' => 10,
+    'maxNewItemsPerRun' => 50,
     'rssPollLimitPerRun' => 50,
     'incomingMaxItems' => 2000,
+    'fetchTimeoutSeconds' => 15,
+    'userAgent' => 'NewsAtmosRSS/1.0',
+    'dedupWindowDays' => 30,
+    'stripHtml' => true,
+    'normalizeWhitespace' => true,
     'rewriteMaxChars' => 14000,
     'rewriteRegionHint' => 'Россия',
     'rewriteTemperature' => 0.5,
@@ -37,37 +45,13 @@ function default_config() {
   ];
 }
 
-function ensure_data_dir($dir) {
-  if (is_dir($dir)) return true;
-  return mkdir($dir, 0755, true);
-}
-
-function read_json_file($path, $fallback) {
-  if (!file_exists($path)) return $fallback;
-  $raw = file_get_contents($path);
-  if ($raw === false || trim($raw) === '') return $fallback;
-  $data = json_decode($raw, true);
-  return is_array($data) ? $data : $fallback;
-}
-
-function write_json_file($path, $data) {
-  $json = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
-  if ($json === false) return false;
-  $dir = dirname($path);
-  if (!ensure_data_dir($dir)) return false;
-  $tmp = $path . '.tmp';
-  $ok = file_put_contents($tmp, $json, LOCK_EX);
-  if ($ok === false) return false;
-  return rename($tmp, $path);
-}
-
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-  echo json_encode(read_json_file($path, default_config()), JSON_UNESCAPED_UNICODE);
+  echo json_encode(read_json($path, default_config()), JSON_UNESCAPED_UNICODE);
   exit;
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-  require_admin_token();
+  require_admin();
 
   $raw = file_get_contents('php://input');
   $data = json_decode($raw, true);
@@ -98,8 +82,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
   }
 
-  $safe['rssPollLimitPerRun'] = isset($data['rssPollLimitPerRun']) ? (int)$data['rssPollLimitPerRun'] : $safe['rssPollLimitPerRun'];
+  $safe['pollIntervalMinutes'] = isset($data['pollIntervalMinutes']) ? (int)$data['pollIntervalMinutes'] : $safe['pollIntervalMinutes'];
+
+  if (isset($data['maxNewItemsPerRun'])) {
+    $safe['maxNewItemsPerRun'] = (int)$data['maxNewItemsPerRun'];
+  } elseif (isset($data['rssPollLimitPerRun'])) {
+    $safe['maxNewItemsPerRun'] = (int)$data['rssPollLimitPerRun'];
+  }
+
+  $safe['rssPollLimitPerRun'] = $safe['maxNewItemsPerRun'];
   $safe['incomingMaxItems'] = isset($data['incomingMaxItems']) ? (int)$data['incomingMaxItems'] : $safe['incomingMaxItems'];
+  $safe['fetchTimeoutSeconds'] = isset($data['fetchTimeoutSeconds']) ? (int)$data['fetchTimeoutSeconds'] : $safe['fetchTimeoutSeconds'];
+  $safe['userAgent'] = isset($data['userAgent']) ? mb_substr(trim((string)$data['userAgent']), 0, 200) : $safe['userAgent'];
+  $safe['dedupWindowDays'] = isset($data['dedupWindowDays']) ? (int)$data['dedupWindowDays'] : $safe['dedupWindowDays'];
+  $safe['stripHtml'] = isset($data['stripHtml']) ? (bool)$data['stripHtml'] : $safe['stripHtml'];
+  $safe['normalizeWhitespace'] = isset($data['normalizeWhitespace']) ? (bool)$data['normalizeWhitespace'] : $safe['normalizeWhitespace'];
+
   $safe['rewriteMaxChars'] = isset($data['rewriteMaxChars']) ? (int)$data['rewriteMaxChars'] : $safe['rewriteMaxChars'];
   $safe['rewriteRegionHint'] = isset($data['rewriteRegionHint']) ? mb_substr(trim((string)$data['rewriteRegionHint']), 0, 200) : $safe['rewriteRegionHint'];
   $safe['rewriteTemperature'] = isset($data['rewriteTemperature']) ? (float)$data['rewriteTemperature'] : $safe['rewriteTemperature'];
@@ -110,7 +108,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     : $safe['rewriteQuotesPolicy'];
   $safe['newsVersion'] = isset($data['newsVersion']) ? (int)$data['newsVersion'] : $safe['newsVersion'];
 
-  if (!write_json_file($path, $safe)) {
+  if (!write_json_atomic($path, $safe)) {
     http_response_code(500);
     echo json_encode(['ok' => false, 'error' => 'Не удалось сохранить файл (права доступа?)'], JSON_UNESCAPED_UNICODE);
     exit;

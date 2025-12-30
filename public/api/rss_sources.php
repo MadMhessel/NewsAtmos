@@ -11,35 +11,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 require_once __DIR__ . '/_auth.php';
+require_once __DIR__ . '/lib_json.php';
 
-$path = __DIR__ . '/rss_sources.json';
-
-function read_json_file($path, $fallback) {
-  if (!file_exists($path)) return $fallback;
-  $raw = file_get_contents($path);
-  if ($raw === false || trim($raw) === '') return $fallback;
-  $data = json_decode($raw, true);
-  return is_array($data) ? $data : $fallback;
-}
-
-function write_json_file($path, $data) {
-  $json = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
-  if ($json === false) return false;
-  $dir = dirname($path);
-  if (!is_dir($dir)) return false;
-  $tmp = $path . '.tmp';
-  $ok = file_put_contents($tmp, $json, LOCK_EX);
-  if ($ok === false) return false;
-  return rename($tmp, $path);
-}
+$path = __DIR__ . '/data/rss_sources.json';
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-  echo json_encode(read_json_file($path, []), JSON_UNESCAPED_UNICODE);
+  echo json_encode(read_json($path, []), JSON_UNESCAPED_UNICODE);
   exit;
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-  require_admin_token();
+  require_admin();
 
   $raw = file_get_contents('php://input');
   $data = json_decode($raw, true);
@@ -83,7 +65,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     ];
   }
 
-  if (!write_json_file($path, $safe)) {
+  if (!write_json_atomic($path, $safe)) {
     http_response_code(500);
     echo json_encode(['ok' => false, 'error' => 'Не удалось сохранить файл (права доступа?)'], JSON_UNESCAPED_UNICODE);
     exit;

@@ -11,46 +11,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 require_once __DIR__ . '/_auth.php';
+require_once __DIR__ . '/lib_json.php';
+require_once __DIR__ . '/lib_feed.php';
 
 $dataDir = __DIR__ . '/data';
 $incomingPath = $dataDir . '/incoming.json';
 $configPath = $dataDir . '/config.json';
-
-function ensure_data_dir($dir) {
-  if (is_dir($dir)) return true;
-  return mkdir($dir, 0755, true);
-}
-
-function read_json_file($path, $fallback = []) {
-  if (!file_exists($path)) return $fallback;
-  $raw = file_get_contents($path);
-  if ($raw === false || trim($raw) === '') return $fallback;
-  $data = json_decode($raw, true);
-  return is_array($data) ? $data : $fallback;
-}
-
-function write_json_file($path, $data) {
-  $json = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
-  if ($json === false) return false;
-  $dir = dirname($path);
-  if (!ensure_data_dir($dir)) return false;
-  $tmp = $path . '.tmp';
-  $ok = file_put_contents($tmp, $json, LOCK_EX);
-  if ($ok === false) return false;
-  return rename($tmp, $path);
-}
-
-function now_utc_iso() {
-  $dt = new DateTime('now', new DateTimeZone('UTC'));
-  return $dt->format('c');
-}
-
-function normalize_text($text) {
-  $text = html_entity_decode((string)$text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
-  $text = strip_tags($text);
-  $text = preg_replace('/\s+/u', ' ', $text);
-  return trim($text);
-}
 
 function extract_text_from_html($html) {
   $html = preg_replace('#<(script|style)[^>]*>.*?</\1>#si', ' ', $html);
@@ -104,7 +70,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
   exit;
 }
 
-require_admin_token();
+require_admin();
 
 $raw = file_get_contents('php://input');
 $payload = json_decode($raw, true);
@@ -128,10 +94,10 @@ if ($id === '') {
   exit;
 }
 
-$config = read_json_file($configPath, []);
+$config = read_json($configPath, []);
 $rewriteMaxChars = isset($config['rewriteMaxChars']) ? (int)$config['rewriteMaxChars'] : 14000;
 
-$items = read_json_file($incomingPath, []);
+$items = read_json($incomingPath, []);
 $foundIndex = null;
 foreach ($items as $idx => $item) {
   if (isset($item['id']) && (string)$item['id'] === $id) {
@@ -154,7 +120,7 @@ if (isset($item['status']) && $item['status'] === 'rewriting') {
 
 $items[$foundIndex]['status'] = 'rewriting';
 $items[$foundIndex]['updatedAt'] = now_utc_iso();
-write_json_file($incomingPath, $items);
+write_json_atomic($incomingPath, $items);
 
 $rawText = isset($item['raw']['text']) ? $item['raw']['text'] : '';
 $rawText = trim((string)$rawText);
@@ -171,7 +137,7 @@ if ($rawText === '') {
   }
 }
 
-$clean = normalize_text($rawText);
+$clean = normalize_text($rawText, true, true);
 if ($rewriteMaxChars > 0 && mb_strlen($clean, 'UTF-8') > $rewriteMaxChars) {
   $clean = mb_substr($clean, 0, $rewriteMaxChars);
 }
@@ -181,7 +147,7 @@ $secret = getenv('HMAC_SECRET');
 if (!$serviceUrl || !$secret) {
   $items[$foundIndex]['status'] = 'error';
   $items[$foundIndex]['rewriteError'] = 'Не настроены переменные окружения для реврайта.';
-  write_json_file($incomingPath, $items);
+  write_json_atomic($incomingPath, $items);
   http_response_code(500);
   echo json_encode(['ok' => false, 'error' => 'Rewrite service unavailable'], JSON_UNESCAPED_UNICODE);
   exit;
@@ -202,49 +168,38 @@ curl_setopt($ch, CURLOPT_HTTPHEADER, [
   'X-Signature: ' . $signature,
 ]);
 curl_setopt($ch, CURLOPT_POSTFIELDS, $payloadJson);
-$responseBody = curl_exec($ch);
-$curlErr = curl_error($ch);
-$httpStatus = curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+$result = curl_exec($ch);
+$err = curl_error($ch);
+$status = curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
 curl_close($ch);
 
-if ($responseBody === false || $httpStatus >= 400) {
+if ($result === false || $status >= 400) {
   $items[$foundIndex]['status'] = 'error';
-  $items[$foundIndex]['rewriteError'] = $curlErr ?: ('HTTP ' . $httpStatus);
-  write_json_file($incomingPath, $items);
-  http_response_code(500);
-  echo json_encode(['ok' => false, 'error' => 'Ошибка обращения к сервису реврайта'], JSON_UNESCAPED_UNICODE);
+  $items[$foundIndex]['rewriteError'] = $err ?: ('HTTP ' . $status);
+  write_json_atomic($incomingPath, $items);
+  http_response_code(502);
+  echo json_encode(['ok' => false, 'error' => 'Rewrite failed'], JSON_UNESCAPED_UNICODE);
   exit;
 }
 
-$decoded = json_decode($responseBody, true);
-if (!is_array($decoded) || empty($decoded['ok'])) {
+$payloadResult = json_decode($result, true);
+if (!is_array($payloadResult)) {
   $items[$foundIndex]['status'] = 'error';
   $items[$foundIndex]['rewriteError'] = 'Некорректный ответ от сервиса реврайта.';
-  write_json_file($incomingPath, $items);
-  http_response_code(500);
-  echo json_encode(['ok' => false, 'error' => 'Bad rewrite response'], JSON_UNESCAPED_UNICODE);
+  write_json_atomic($incomingPath, $items);
+  http_response_code(502);
+  echo json_encode(['ok' => false, 'error' => 'Rewrite failed'], JSON_UNESCAPED_UNICODE);
   exit;
 }
 
-$newsItem = isset($decoded['newsItem']) && is_array($decoded['newsItem']) ? $decoded['newsItem'] : [];
-$items[$foundIndex]['rewrite'] = [
-  'title' => $newsItem['title'] ?? '',
-  'excerpt' => $newsItem['excerpt'] ?? '',
-  'category' => $newsItem['category'] ?? ($item['category'] ?? ''),
-  'tags' => $newsItem['tags'] ?? [],
-  'content' => $newsItem['content'] ?? [],
-  'heroImage' => $newsItem['heroImage'] ?? ($item['image'] ?? ''),
-  'flags' => $decoded['flags'] ?? [],
-  'confidence' => $decoded['confidence'] ?? null,
-];
 $items[$foundIndex]['status'] = 'rewritten';
-$items[$foundIndex]['rewriteError'] = null;
+$items[$foundIndex]['rewrite'] = $payloadResult;
 $items[$foundIndex]['updatedAt'] = now_utc_iso();
 
-if (!write_json_file($incomingPath, $items)) {
+if (!write_json_atomic($incomingPath, $items)) {
   http_response_code(500);
   echo json_encode(['ok' => false, 'error' => 'Не удалось сохранить incoming.json'], JSON_UNESCAPED_UNICODE);
   exit;
 }
 
-echo json_encode(['ok' => true, 'newsItem' => $items[$foundIndex]['rewrite']], JSON_UNESCAPED_UNICODE);
+echo json_encode(['ok' => true, 'data' => $payloadResult], JSON_UNESCAPED_UNICODE);

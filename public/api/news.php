@@ -4,6 +4,7 @@ header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 header('Pragma: no-cache');
 
 require_once __DIR__ . '/_auth.php';
+require_once __DIR__ . '/lib_json.php';
 
 $configPath = __DIR__ . '/data/config.json';
 
@@ -15,42 +16,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 $path = __DIR__ . '/news.json';
-
-function read_json_file($path) {
-  if (!file_exists($path)) return [];
-  $raw = file_get_contents($path);
-  if ($raw === false) return [];
-  $data = json_decode($raw, true);
-  return is_array($data) ? $data : [];
-}
-
-function write_json_file($path, $data) {
-  $json = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
-  if ($json === false) return false;
-  $tmp = $path . '.tmp';
-  $ok = file_put_contents($tmp, $json, LOCK_EX);
-  if ($ok === false) return false;
-  return rename($tmp, $path);
-}
-
-function read_config($path) {
-  if (!file_exists($path)) return [];
-  $raw = file_get_contents($path);
-  if ($raw === false || trim($raw) === '') return [];
-  $data = json_decode($raw, true);
-  return is_array($data) ? $data : [];
-}
-
-function write_config($path, $data) {
-  $json = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
-  if ($json === false) return false;
-  $dir = dirname($path);
-  if (!is_dir($dir)) return false;
-  $tmp = $path . '.tmp';
-  $ok = file_put_contents($tmp, $json, LOCK_EX);
-  if ($ok === false) return false;
-  return rename($tmp, $path);
-}
 
 function backup_news_file($path) {
   if (!file_exists($path)) return;
@@ -71,25 +36,16 @@ function backup_news_file($path) {
   }
 }
 
-function require_admin_token_for_news() {
-  $token = get_header_value('X-Admin-Token');
-  if (!$token || $token !== ADMIN_TOKEN_SHA256) {
-    http_response_code(401);
-    echo json_encode(['ok' => false, 'error' => 'unauthorized'], JSON_UNESCAPED_UNICODE);
-    exit;
-  }
-}
-
 $method = $_SERVER['REQUEST_METHOD'];
 
 if ($method === 'GET') {
-  $data = read_json_file($path);
+  $data = read_json($path, []);
   echo json_encode($data, JSON_UNESCAPED_UNICODE);
   exit;
 }
 
 if ($method === 'POST') {
-  require_admin_token_for_news();
+  require_admin();
 
   $raw = file_get_contents('php://input');
   $data = json_decode($raw, true);
@@ -102,15 +58,15 @@ if ($method === 'POST') {
 
   backup_news_file($path);
 
-  if (!write_json_file($path, $data)) {
+  if (!write_json_atomic($path, $data)) {
     http_response_code(500);
     echo json_encode(['ok' => false, 'error' => 'Не удалось сохранить файл (права доступа?)'], JSON_UNESCAPED_UNICODE);
     exit;
   }
 
-  $config = read_config($configPath);
+  $config = read_json($configPath, []);
   $config['newsVersion'] = isset($config['newsVersion']) ? ((int)$config['newsVersion'] + 1) : 1;
-  write_config($configPath, $config);
+  write_json_atomic($configPath, $config);
 
   echo json_encode(['ok' => true], JSON_UNESCAPED_UNICODE);
   exit;

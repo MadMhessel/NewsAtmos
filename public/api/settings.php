@@ -11,6 +11,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 require_once __DIR__ . '/_auth.php';
+require_once __DIR__ . '/lib_json.php';
 
 $path = __DIR__ . '/settings.json';
 
@@ -32,30 +33,13 @@ function default_settings() {
   ];
 }
 
-function read_json_file($path, $fallback) {
-  if (!file_exists($path)) return $fallback;
-  $raw = file_get_contents($path);
-  if ($raw === false || trim($raw) === '') return $fallback;
-  $data = json_decode($raw, true);
-  if (!is_array($data)) return $fallback;
-  return $data;
-}
-
-function write_json_file($path, $data) {
-  $json = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
-  if ($json === false) return false;
-  $dir = dirname($path);
-  if (!is_dir($dir)) return false;
-  return file_put_contents($path, $json) !== false;
-}
-
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-  echo json_encode(read_json_file($path, default_settings()), JSON_UNESCAPED_UNICODE);
+  echo json_encode(read_json($path, default_settings()), JSON_UNESCAPED_UNICODE);
   exit;
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-  require_admin_token();
+  require_admin();
 
   $raw = file_get_contents('php://input');
   $data = json_decode($raw, true);
@@ -65,7 +49,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     exit;
   }
 
-  // Минимальная нормализация — сервер не должен принимать гигабайты и мусор.
   $maxLen = 5000;
   $safe = default_settings();
 
@@ -86,7 +69,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $safe['footerAboutText'] = isset($data['footerAboutText']) ? mb_substr((string)$data['footerAboutText'], 0, $maxLen) : $safe['footerAboutText'];
   $safe['footerAgeBadge'] = isset($data['footerAgeBadge']) ? mb_substr(trim((string)$data['footerAgeBadge']), 0, 20) : $safe['footerAgeBadge'];
 
-  if (!write_json_file($path, $safe)) {
+  if (!write_json_atomic($path, $safe)) {
     http_response_code(500);
     echo json_encode(['ok' => false, 'error' => 'Не удалось сохранить файл (права доступа?)'], JSON_UNESCAPED_UNICODE);
     exit;
