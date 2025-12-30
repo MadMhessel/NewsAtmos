@@ -9,7 +9,9 @@ const API_INCOMING = '/api/incoming.php';
 const API_NEWS = '/api/news.php';
 const API_REWRITE = '/api/rewrite.php';
 const API_CONFIG = '/api/config.php';
+const API_SECRETS = '/api/secrets.php';
 const API_RSS = '/api/rss_sources.php';
+const API_RSS_PULL = '/api/rss_pull.php';
 
 type IncomingItem = {
   id: string;
@@ -41,12 +43,16 @@ type Config = {
   allowedCategories: { slug: string; title: string }[];
   rssPollLimitPerRun: number;
   incomingMaxItems: number;
+  maxNewItemsPerRun: number;
+  dedupWindowDays: number;
+  fetchTimeoutSec: number;
+  userAgent: string;
   rewriteMaxChars: number;
   rewriteRegionHint: string;
+  rewriteTimeoutSec: number;
   rewriteTemperature: number;
-  rewriteIncludeSourceBlock: boolean;
-  rewriteUseSourceImage: boolean;
-  rewriteQuotesPolicy: 'source_only' | 'allow';
+  appendSourceBlock: boolean;
+  allowQuotesOnlyIfPresent: boolean;
   newsVersion: number;
 };
 
@@ -60,7 +66,8 @@ type RssSource = {
 
 const getAdminToken = () => {
   try {
-    return typeof window !== 'undefined' ? sessionStorage.getItem('admin_token') : null;
+    if (typeof window === 'undefined') return null;
+    return localStorage.getItem('admin_token') || sessionStorage.getItem('admin_token');
   } catch {
     return null;
   }
@@ -104,21 +111,28 @@ const ensureStringArray = (value?: string[]) => (Array.isArray(value) ? value.fi
 const defaultConfig: Config = {
   siteTitle: 'Новости',
   defaultAuthorName: 'Редакция',
-  defaultAuthorRole: 'Editor',
+  defaultAuthorRole: 'Новости',
   defaultCategorySlug: 'city',
   allowedCategories: [
     { slug: 'city', title: 'Город' },
-    { slug: 'society', title: 'Общество' },
-    { slug: 'economy', title: 'Экономика' },
+    { slug: 'transport', title: 'Транспорт' },
+    { slug: 'incidents', title: 'Происшествия' },
+    { slug: 'sports', title: 'Спорт' },
+    { slug: 'events', title: 'События' },
+    { slug: 'real-estate', title: 'Недвижимость' },
   ],
   rssPollLimitPerRun: 50,
   incomingMaxItems: 2000,
-  rewriteMaxChars: 14000,
-  rewriteRegionHint: 'Россия',
-  rewriteTemperature: 0.5,
-  rewriteIncludeSourceBlock: true,
-  rewriteUseSourceImage: true,
-  rewriteQuotesPolicy: 'source_only',
+  maxNewItemsPerRun: 50,
+  dedupWindowDays: 30,
+  fetchTimeoutSec: 12,
+  userAgent: 'NewsAtmos/1.0',
+  rewriteMaxChars: 12000,
+  rewriteRegionHint: 'Нижний Новгород',
+  rewriteTimeoutSec: 25,
+  rewriteTemperature: 0.2,
+  appendSourceBlock: true,
+  allowQuotesOnlyIfPresent: true,
   newsVersion: 0,
 };
 
@@ -141,11 +155,31 @@ const statusClasses: Record<string, string> = {
 };
 
 const NewsModulePage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'incoming' | 'drafts' | 'published' | 'settings'>('incoming');
+  const [activeTab, setActiveTab] = useState<'incoming' | 'drafts' | 'published' | 'settings' | 'ai_settings'>('incoming');
   const [incomingItems, setIncomingItems] = useState<IncomingItem[]>([]);
   const [newsItems, setNewsItems] = useState<Article[]>([]);
   const [config, setConfig] = useState<Config>(defaultConfig);
   const [rssSources, setRssSources] = useState<RssSource[]>([]);
+  const [aiAdminToken, setAiAdminToken] = useState(() => {
+    try {
+      return typeof window !== 'undefined' ? localStorage.getItem('admin_token') || '' : '';
+    } catch {
+      return '';
+    }
+  });
+  const [secretsStatus, setSecretsStatus] = useState({
+    REWRITE_SERVICE_URL: false,
+    HMAC_SECRET: false,
+    INTERNAL_TOOL_TOKEN: false,
+  });
+  const [secretsDraft, setSecretsDraft] = useState({
+    REWRITE_SERVICE_URL: '',
+    HMAC_SECRET: '',
+    INTERNAL_TOOL_TOKEN: '',
+  });
+  const [rewriteHealthResult, setRewriteHealthResult] = useState<string | null>(null);
+  const [rewriteTestResult, setRewriteTestResult] = useState<string | null>(null);
+  const [rssPullResult, setRssPullResult] = useState<string | null>(null);
   const [incomingSearch, setIncomingSearch] = useState('');
   const [incomingStatus, setIncomingStatus] = useState('');
   const [newsSearch, setNewsSearch] = useState('');
@@ -170,7 +204,7 @@ const NewsModulePage: React.FC = () => {
 
   const loadConfig = async () => {
     try {
-      const res = await fetch(API_CONFIG);
+      const res = await apiFetch(API_CONFIG);
       if (!res.ok) throw new Error('config');
       const data = await res.json();
       setConfig({ ...defaultConfig, ...data });
@@ -203,7 +237,7 @@ const NewsModulePage: React.FC = () => {
 
   const loadRssSources = async () => {
     try {
-      const res = await fetch(API_RSS);
+      const res = await apiFetch(API_RSS);
       if (!res.ok) throw new Error('rss');
       const data = await res.json();
       setRssSources(Array.isArray(data) ? data : []);
@@ -212,11 +246,31 @@ const NewsModulePage: React.FC = () => {
     }
   };
 
+  const loadSecretsStatus = async () => {
+    try {
+      const res = await apiFetch(API_SECRETS);
+      if (!res.ok) throw new Error('secrets');
+      const data = await res.json();
+      setSecretsStatus({
+        REWRITE_SERVICE_URL: !!data?.REWRITE_SERVICE_URL,
+        HMAC_SECRET: !!data?.HMAC_SECRET,
+        INTERNAL_TOOL_TOKEN: !!data?.INTERNAL_TOOL_TOKEN,
+      });
+    } catch {
+      setSecretsStatus({
+        REWRITE_SERVICE_URL: false,
+        HMAC_SECRET: false,
+        INTERNAL_TOOL_TOKEN: false,
+      });
+    }
+  };
+
   useEffect(() => {
     loadConfig();
     loadIncoming();
     loadNews();
     loadRssSources();
+    loadSecretsStatus();
   }, []);
 
   const filteredIncoming = useMemo(() => {
@@ -548,6 +602,99 @@ const NewsModulePage: React.FC = () => {
     }
   };
 
+  const saveSecrets = async () => {
+    setIsBusy(true);
+    setStatusMessage(null);
+    try {
+      const res = await apiFetch(API_SECRETS, {
+        method: 'POST',
+        body: JSON.stringify(secretsDraft),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) throw new Error(data?.error || 'Ошибка сохранения');
+      setStatusMessage({ type: 'ok', text: 'Секреты сохранены.' });
+      setSecretsDraft({ REWRITE_SERVICE_URL: '', HMAC_SECRET: '', INTERNAL_TOOL_TOKEN: '' });
+      await loadSecretsStatus();
+    } catch (e: any) {
+      setStatusMessage({ type: 'err', text: e?.message || 'Не удалось сохранить секреты.' });
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  const checkAccess = async () => {
+    setStatusMessage(null);
+    try {
+      const res = await apiFetch(API_CONFIG);
+      if (!res.ok) throw new Error(`Ошибка доступа (${res.status})`);
+      setStatusMessage({ type: 'ok', text: 'Доступ подтверждён.' });
+    } catch (e: any) {
+      setStatusMessage({ type: 'err', text: e?.message || 'Не удалось проверить доступ.' });
+    }
+  };
+
+  const checkCloudRun = async () => {
+    setStatusMessage(null);
+    setRewriteHealthResult(null);
+    try {
+      const res = await apiFetch(`${API_REWRITE}?action=health`);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data?.ok === false) {
+        throw new Error(data?.error || `Ошибка проверки (${res.status})`);
+      }
+      setRewriteHealthResult(JSON.stringify(data, null, 2));
+      setStatusMessage({ type: 'ok', text: 'Cloud Run доступен.' });
+    } catch (e: any) {
+      setStatusMessage({ type: 'err', text: e?.message || 'Не удалось проверить Cloud Run.' });
+    }
+  };
+
+  const testRewrite = async () => {
+    setStatusMessage(null);
+    setRewriteTestResult(null);
+    try {
+      const res = await apiFetch(`${API_REWRITE}?action=test`);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data?.ok === false) {
+        throw new Error(data?.error || `Ошибка теста (${res.status})`);
+      }
+      setRewriteTestResult(JSON.stringify(data, null, 2));
+      setStatusMessage({ type: 'ok', text: 'Тест реврайта выполнен.' });
+    } catch (e: any) {
+      setStatusMessage({ type: 'err', text: e?.message || 'Не удалось выполнить тест реврайта.' });
+    }
+  };
+
+  const checkWritePermissions = async () => {
+    setStatusMessage(null);
+    try {
+      const res = await apiFetch(`${API_CONFIG}?action=check_write`);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data?.ok === false) {
+        throw new Error(data?.error || `Ошибка проверки (${res.status})`);
+      }
+      setStatusMessage({ type: 'ok', text: 'Права записи подтверждены.' });
+    } catch (e: any) {
+      setStatusMessage({ type: 'err', text: e?.message || 'Не удалось проверить права записи.' });
+    }
+  };
+
+  const runRssPull = async () => {
+    setStatusMessage(null);
+    setRssPullResult(null);
+    try {
+      const res = await apiFetch(API_RSS_PULL, { method: 'POST' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data?.ok === false) {
+        throw new Error(data?.error || `Ошибка запуска (${res.status})`);
+      }
+      setRssPullResult(JSON.stringify(data, null, 2));
+      setStatusMessage({ type: 'ok', text: `Сбор запущен. Добавлено: ${data?.added ?? 0}.` });
+    } catch (e: any) {
+      setStatusMessage({ type: 'err', text: e?.message || 'Не удалось запустить сбор.' });
+    }
+  };
+
   const updateRssSource = (idx: number, patch: Partial<RssSource>) => {
     const next = [...rssSources];
     next[idx] = { ...next[idx], ...patch } as RssSource;
@@ -567,6 +714,26 @@ const NewsModulePage: React.FC = () => {
     setRssSources(next);
   };
 
+  const updateCategory = (idx: number, patch: Partial<Config['allowedCategories'][number]>) => {
+    const next = [...config.allowedCategories];
+    next[idx] = { ...next[idx], ...patch };
+    setConfig({ ...config, allowedCategories: next });
+  };
+
+  const addCategory = () => {
+    setConfig({
+      ...config,
+      allowedCategories: [...config.allowedCategories, { slug: '', title: '' }],
+    });
+  };
+
+  const removeCategory = (idx: number) => {
+    const next = [...config.allowedCategories];
+    const removed = next.splice(idx, 1);
+    const nextDefault = removed[0]?.slug === config.defaultCategorySlug ? next[0]?.slug || '' : config.defaultCategorySlug;
+    setConfig({ ...config, allowedCategories: next, defaultCategorySlug: nextDefault });
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-2">
@@ -584,6 +751,7 @@ const NewsModulePage: React.FC = () => {
               { key: 'drafts', label: 'Черновики' },
               { key: 'published', label: 'Опубликованные' },
               { key: 'settings', label: 'Настройки' },
+              { key: 'ai_settings', label: 'Настройки ИИ' },
             ] as const).map((tab) => (
               <button
                 key={tab.key}
@@ -822,11 +990,14 @@ const NewsModulePage: React.FC = () => {
                     <Input value={config.defaultAuthorRole} onChange={(e) => setConfig({ ...config, defaultAuthorRole: e.target.value })} />
                   </div>
                   <div>
-                    <label className="text-sm font-medium">Лимит RSS за запуск</label>
+                    <label className="text-sm font-medium">Новых новостей за запуск</label>
                     <Input
                       type="number"
-                      value={config.rssPollLimitPerRun}
-                      onChange={(e) => setConfig({ ...config, rssPollLimitPerRun: Number(e.target.value) })}
+                      value={config.maxNewItemsPerRun}
+                      onChange={(e) => {
+                        const value = Number(e.target.value);
+                        setConfig({ ...config, maxNewItemsPerRun: value, rssPollLimitPerRun: value });
+                      }}
                     />
                   </div>
                   <div>
@@ -935,33 +1106,335 @@ const NewsModulePage: React.FC = () => {
                     />
                   </div>
                   <div>
-                    <label className="text-sm font-medium">Политика цитат</label>
-                    <select
-                      className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                      value={config.rewriteQuotesPolicy}
-                      onChange={(e) => setConfig({ ...config, rewriteQuotesPolicy: e.target.value as Config['rewriteQuotesPolicy'] })}
-                    >
-                      <option value="source_only">Только если есть в источнике</option>
-                      <option value="allow">Разрешить всегда</option>
-                    </select>
+                    <label className="text-sm font-medium">Таймаут реврайта (сек.)</label>
+                    <Input
+                      type="number"
+                      value={config.rewriteTimeoutSec}
+                      onChange={(e) => setConfig({ ...config, rewriteTimeoutSec: Number(e.target.value) })}
+                    />
                   </div>
                   <label className="flex items-center gap-2 text-sm">
                     <input
                       type="checkbox"
-                      checked={config.rewriteIncludeSourceBlock}
-                      onChange={(e) => setConfig({ ...config, rewriteIncludeSourceBlock: e.target.checked })}
+                      checked={config.allowQuotesOnlyIfPresent}
+                      onChange={(e) => setConfig({ ...config, allowQuotesOnlyIfPresent: e.target.checked })}
                     />
-                    Всегда добавлять блок «Источник»
+                    Цитаты только если есть в исходнике
                   </label>
                   <label className="flex items-center gap-2 text-sm">
                     <input
                       type="checkbox"
-                      checked={config.rewriteUseSourceImage}
-                      onChange={(e) => setConfig({ ...config, rewriteUseSourceImage: e.target.checked })}
+                      checked={config.appendSourceBlock}
+                      onChange={(e) => setConfig({ ...config, appendSourceBlock: e.target.checked })}
                     />
-                    Автоподстановка heroImage из source_image
+                    Всегда добавлять блок «Источник»
                   </label>
                 </div>
+              </section>
+            </div>
+          )}
+
+          {activeTab === 'ai_settings' && (
+            <div className="space-y-6">
+              <section className="rounded-xl border border-border bg-card p-5 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-lg font-semibold">A) Доступ и безопасность</h2>
+                    <p className="text-xs text-muted-foreground">ADMIN_TOKEN хранится в браузере (localStorage).</p>
+                  </div>
+                  <Button variant="secondary" onClick={checkAccess}>
+                    Проверить доступ
+                  </Button>
+                </div>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div>
+                    <label className="text-sm font-medium">ADMIN_TOKEN</label>
+                    <Input
+                      type="password"
+                      value={aiAdminToken}
+                      onChange={(e) => {
+                        const next = e.target.value;
+                        setAiAdminToken(next);
+                        try {
+                          localStorage.setItem('admin_token', next);
+                        } catch {
+                          // ignore storage errors
+                        }
+                      }}
+                      placeholder="Вставьте токен администратора"
+                    />
+                  </div>
+                </div>
+              </section>
+
+              <section className="rounded-xl border border-border bg-card p-5 space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h2 className="text-lg font-semibold">B) Подключение сервиса реврайта (Cloud Run)</h2>
+                    <p className="text-xs text-muted-foreground">Секреты сохраняются только на сервере.</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button variant="secondary" onClick={checkCloudRun}>Проверить Cloud Run</Button>
+                    <Button variant="secondary" onClick={testRewrite}>Тест реврайта</Button>
+                    <Button onClick={saveSecrets} disabled={isBusy}>Сохранить секреты</Button>
+                  </div>
+                </div>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <label className="text-sm font-medium">REWRITE_SERVICE_URL</label>
+                    <Input
+                      value={secretsDraft.REWRITE_SERVICE_URL}
+                      onChange={(e) => setSecretsDraft({ ...secretsDraft, REWRITE_SERVICE_URL: e.target.value })}
+                      placeholder={secretsStatus.REWRITE_SERVICE_URL ? 'Задано' : 'Не задано'}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Текущее состояние: {secretsStatus.REWRITE_SERVICE_URL ? 'задано' : 'не задано'}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">HMAC_SECRET</label>
+                    <Input
+                      type="password"
+                      value={secretsDraft.HMAC_SECRET}
+                      onChange={(e) => setSecretsDraft({ ...secretsDraft, HMAC_SECRET: e.target.value })}
+                      placeholder={secretsStatus.HMAC_SECRET ? 'Задано' : 'Не задано'}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Текущее состояние: {secretsStatus.HMAC_SECRET ? 'задано' : 'не задано'}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">INTERNAL_TOOL_TOKEN (опционально)</label>
+                    <Input
+                      type="password"
+                      value={secretsDraft.INTERNAL_TOOL_TOKEN}
+                      onChange={(e) => setSecretsDraft({ ...secretsDraft, INTERNAL_TOOL_TOKEN: e.target.value })}
+                      placeholder={secretsStatus.INTERNAL_TOOL_TOKEN ? 'Задано' : 'Не задано'}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Текущее состояние: {secretsStatus.INTERNAL_TOOL_TOKEN ? 'задано' : 'не задано'}
+                    </p>
+                  </div>
+                </div>
+                {rewriteHealthResult && (
+                  <div>
+                    <p className="text-xs text-muted-foreground">Ответ Cloud Run (/healthz)</p>
+                    <pre className="mt-2 rounded-lg bg-muted/30 p-3 text-xs overflow-auto">{rewriteHealthResult}</pre>
+                  </div>
+                )}
+                {rewriteTestResult && (
+                  <div>
+                    <p className="text-xs text-muted-foreground">Ответ теста реврайта</p>
+                    <pre className="mt-2 rounded-lg bg-muted/30 p-3 text-xs overflow-auto">{rewriteTestResult}</pre>
+                  </div>
+                )}
+              </section>
+
+              <section className="rounded-xl border border-border bg-card p-5 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-lg font-semibold">C) Параметры реврайта</h2>
+                    <p className="text-xs text-muted-foreground">Несекретные параметры сохраняются в config.json.</p>
+                  </div>
+                  <Button onClick={saveSettings} disabled={isBusy}>Сохранить параметры</Button>
+                </div>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <label className="text-sm font-medium">Региональная подсказка</label>
+                    <Input value={config.rewriteRegionHint} onChange={(e) => setConfig({ ...config, rewriteRegionHint: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Максимум символов</label>
+                    <Input type="number" value={config.rewriteMaxChars} onChange={(e) => setConfig({ ...config, rewriteMaxChars: Number(e.target.value) })} />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Таймаут реврайта (сек.)</label>
+                    <Input type="number" value={config.rewriteTimeoutSec} onChange={(e) => setConfig({ ...config, rewriteTimeoutSec: Number(e.target.value) })} />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Температура</label>
+                    <Input type="number" step="0.1" value={config.rewriteTemperature} onChange={(e) => setConfig({ ...config, rewriteTemperature: Number(e.target.value) })} />
+                  </div>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={config.appendSourceBlock}
+                      onChange={(e) => setConfig({ ...config, appendSourceBlock: e.target.checked })}
+                    />
+                    Добавлять блок «Источник»
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={config.allowQuotesOnlyIfPresent}
+                      onChange={(e) => setConfig({ ...config, allowQuotesOnlyIfPresent: e.target.checked })}
+                    />
+                    Цитаты только если есть в исходнике
+                  </label>
+                  <div>
+                    <label className="text-sm font-medium">Автор по умолчанию</label>
+                    <Input value={config.defaultAuthorName} onChange={(e) => setConfig({ ...config, defaultAuthorName: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Роль автора</label>
+                    <Input value={config.defaultAuthorRole} onChange={(e) => setConfig({ ...config, defaultAuthorRole: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Категория по умолчанию</label>
+                    <select
+                      className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                      value={config.defaultCategorySlug}
+                      onChange={(e) => setConfig({ ...config, defaultCategorySlug: e.target.value })}
+                    >
+                      {config.allowedCategories.map((c) => (
+                        <option key={c.slug} value={c.slug}>{c.title || c.slug}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-semibold">Разрешённые категории</h3>
+                    <Button variant="secondary" size="sm" onClick={addCategory}>Добавить категорию</Button>
+                  </div>
+                  {config.allowedCategories.map((cat, idx) => (
+                    <div key={`${cat.slug}-${idx}`} className="grid gap-3 md:grid-cols-[1fr_1fr_auto] items-center">
+                      <Input
+                        placeholder="slug"
+                        value={cat.slug}
+                        onChange={(e) => updateCategory(idx, { slug: slugify(e.target.value) })}
+                      />
+                      <Input
+                        placeholder="Название"
+                        value={cat.title}
+                        onChange={(e) => updateCategory(idx, { title: e.target.value })}
+                      />
+                      <Button variant="ghost" onClick={() => removeCategory(idx)}>
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ))}
+                  {config.allowedCategories.length === 0 && (
+                    <p className="text-xs text-muted-foreground">Добавьте хотя бы одну категорию.</p>
+                  )}
+                </div>
+              </section>
+
+              <section className="rounded-xl border border-border bg-card p-5 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-lg font-semibold">D) Лимиты и качество сбора</h2>
+                    <p className="text-xs text-muted-foreground">Параметры парсинга RSS и дедупликации.</p>
+                  </div>
+                  <Button variant="secondary" onClick={checkWritePermissions}>
+                    Проверить права записи
+                  </Button>
+                </div>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <label className="text-sm font-medium">incomingMaxItems</label>
+                    <Input type="number" value={config.incomingMaxItems} onChange={(e) => setConfig({ ...config, incomingMaxItems: Number(e.target.value) })} />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">maxNewItemsPerRun</label>
+                    <Input
+                      type="number"
+                      value={config.maxNewItemsPerRun}
+                      onChange={(e) => {
+                        const value = Number(e.target.value);
+                        setConfig({ ...config, maxNewItemsPerRun: value, rssPollLimitPerRun: value });
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">dedupWindowDays</label>
+                    <Input type="number" value={config.dedupWindowDays} onChange={(e) => setConfig({ ...config, dedupWindowDays: Number(e.target.value) })} />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">fetchTimeoutSec</label>
+                    <Input type="number" value={config.fetchTimeoutSec} onChange={(e) => setConfig({ ...config, fetchTimeoutSec: Number(e.target.value) })} />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="text-sm font-medium">userAgent</label>
+                    <Input value={config.userAgent} onChange={(e) => setConfig({ ...config, userAgent: e.target.value })} />
+                  </div>
+                </div>
+              </section>
+
+              <section className="rounded-xl border border-border bg-card p-5 space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h2 className="text-lg font-semibold">E) Источники RSS</h2>
+                    <p className="text-xs text-muted-foreground">URL должен начинаться с http/https.</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button variant="secondary" onClick={addRssSource}>Добавить источник</Button>
+                    <Button variant="secondary" onClick={runRssPull}>Прогнать сбор сейчас</Button>
+                    <Button onClick={saveRssSources} disabled={isBusy}>Сохранить</Button>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  {rssSources.map((source, idx) => (
+                    <div key={`${source.feedUrl}-${idx}`} className="rounded-lg border border-border p-4 space-y-3">
+                      <div className="flex flex-wrap gap-3 items-center">
+                        <Input
+                          className="flex-1 min-w-[180px]"
+                          placeholder="Название"
+                          value={source.name}
+                          onChange={(e) => updateRssSource(idx, { name: e.target.value })}
+                        />
+                        <Input
+                          className="flex-[2] min-w-[240px]"
+                          placeholder="https://example.com/rss"
+                          value={source.feedUrl}
+                          onChange={(e) => updateRssSource(idx, { feedUrl: e.target.value })}
+                        />
+                        <select
+                          className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+                          value={source.category?.slug || config.defaultCategorySlug}
+                          onChange={(e) => {
+                            const selected = config.allowedCategories.find((c) => c.slug === e.target.value);
+                            updateRssSource(idx, { category: selected || config.allowedCategories[0] });
+                          }}
+                        >
+                          {config.allowedCategories.map((c) => (
+                            <option key={c.slug} value={c.slug}>{c.title}</option>
+                          ))}
+                        </select>
+                        <label className="flex items-center gap-2 text-sm">
+                          <input
+                            type="checkbox"
+                            checked={!!source.enabled}
+                            onChange={(e) => updateRssSource(idx, { enabled: e.target.checked })}
+                          />
+                          Включён
+                        </label>
+                        <Button variant="ghost" onClick={() => deleteRssSource(idx)}>
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                      <div>
+                        <label className="text-xs text-muted-foreground">Теги по умолчанию (через запятую)</label>
+                        <Input
+                          value={(source.defaultTags || []).join(', ')}
+                          onChange={(e) => updateRssSource(idx, { defaultTags: e.target.value.split(',').map((t) => t.trim()).filter(Boolean) })}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                  {rssSources.length === 0 && (
+                    <div className="text-sm text-muted-foreground">Добавьте RSS-источники.</div>
+                  )}
+                </div>
+
+                {rssPullResult && (
+                  <div>
+                    <p className="text-xs text-muted-foreground">Результат запуска RSS</p>
+                    <pre className="mt-2 rounded-lg bg-muted/30 p-3 text-xs overflow-auto">{rssPullResult}</pre>
+                  </div>
+                )}
               </section>
             </div>
           )}

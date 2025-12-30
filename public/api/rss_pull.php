@@ -1,25 +1,45 @@
 <?php
 header('Content-Type: application/json; charset=utf-8');
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Pragma: no-cache');
+
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+  header('Access-Control-Allow-Origin: *');
+  header('Access-Control-Allow-Headers: Content-Type, X-Admin-Token, X-Cron-Token');
+  header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+  exit;
+}
 
 require_once __DIR__ . '/_auth.php';
 require_once __DIR__ . '/lib_json.php';
 require_once __DIR__ . '/lib_feed.php';
 
-if (php_sapi_name() !== 'cli') {
-  require_cron_token();
+if (!in_array($_SERVER['REQUEST_METHOD'], ['GET', 'POST'], true)) {
+  http_response_code(405);
+  echo json_encode(['ok' => false, 'error' => 'Метод не поддерживается'], JSON_UNESCAPED_UNICODE);
+  exit;
 }
+
+function require_admin_or_cron(): void {
+  $adminToken = get_header_value('X-Admin-Token');
+  if (is_admin_token_valid($adminToken)) return;
+  $expected = get_cron_token();
+  if ($expected) {
+    $token = get_header_value('X-Cron-Token');
+    if ($token && hash_equals($expected, $token)) return;
+  }
+  http_response_code(403);
+  echo json_encode(['ok' => false, 'error' => 'Доступ запрещён'], JSON_UNESCAPED_UNICODE);
+  exit;
+}
+
+require_admin_or_cron();
 
 $dataDir = __DIR__ . '/data';
 $sourcesPath = $dataDir . '/rss_sources.json';
 $incomingPath = $dataDir . '/incoming.json';
 $seenPath = $dataDir . '/seen.json';
 $configPath = $dataDir . '/config.json';
-$logPath = $dataDir . '/rss_log.txt';
-
-function log_message($path, $message) {
-  $line = '[' . gmdate('c') . '] ' . $message . "\n";
-  file_put_contents($path, $line, FILE_APPEND | LOCK_EX);
-}
 
 if (!ensure_data_dir($dataDir)) {
   http_response_code(500);
@@ -28,22 +48,12 @@ if (!ensure_data_dir($dataDir)) {
 }
 
 $config = read_json($configPath, []);
-$pollIntervalMinutes = isset($config['pollIntervalMinutes']) ? (int)$config['pollIntervalMinutes'] : 0;
-if ($pollIntervalMinutes > 0 && file_exists($logPath)) {
-  $lastRun = filemtime($logPath);
-  if ($lastRun && (time() - $lastRun) < ($pollIntervalMinutes * 60)) {
-    log_message($logPath, 'Пропуск: интервал опроса ещё не истёк.');
-    echo json_encode(['ok' => true, 'skipped' => true], JSON_UNESCAPED_UNICODE);
-    exit;
-  }
-}
-
 $maxAdditions = isset($config['maxNewItemsPerRun']) ? (int)$config['maxNewItemsPerRun'] : (int)($config['rssPollLimitPerRun'] ?? 50);
 $incomingMaxItems = isset($config['incomingMaxItems']) ? (int)$config['incomingMaxItems'] : 2000;
 $fetchTimeout = isset($config['fetchTimeoutSec'])
   ? (int)$config['fetchTimeoutSec']
   : (isset($config['fetchTimeoutSeconds']) ? (int)$config['fetchTimeoutSeconds'] : 12);
-$userAgent = isset($config['userAgent']) ? (string)$config['userAgent'] : 'NewsAtmosRSS/1.0';
+$userAgent = isset($config['userAgent']) ? (string)$config['userAgent'] : 'NewsAtmos/1.0';
 $dedupWindowDays = isset($config['dedupWindowDays']) ? (int)$config['dedupWindowDays'] : 30;
 $stripHtml = isset($config['stripHtml']) ? (bool)$config['stripHtml'] : true;
 $normalizeWhitespace = isset($config['normalizeWhitespace']) ? (bool)$config['normalizeWhitespace'] : true;
@@ -71,6 +81,8 @@ if ($dedupWindowSeconds > 0) {
 
 $newItems = [];
 $addedCount = 0;
+$skippedCount = 0;
+$errors = [];
 
 foreach ($sources as $source) {
   if (!is_array($source)) continue;
@@ -81,7 +93,7 @@ foreach ($sources as $source) {
 
   $fetch = fetch_url_curl($feedUrl, ['timeout' => $fetchTimeout, 'userAgent' => $userAgent]);
   if (empty($fetch['ok'])) {
-    log_message($logPath, 'Ошибка загрузки ' . $feedUrl . ': ' . ($fetch['error'] ?? 'unknown'));
+    $errors[] = 'Ошибка загрузки ' . $feedUrl . ': ' . ($fetch['error'] ?? 'unknown');
     continue;
   }
 
@@ -91,7 +103,7 @@ foreach ($sources as $source) {
   ]);
 
   if (empty($parsed['ok'])) {
-    log_message($logPath, 'Ошибка парсинга XML ' . $feedUrl);
+    $errors[] = 'Ошибка парсинга XML ' . $feedUrl;
     continue;
   }
 
@@ -106,7 +118,10 @@ foreach ($sources as $source) {
     $hashBase = $itemUrl !== '' ? $itemUrl : ($guid !== '' ? $guid : ($title . '|' . $publishedAt));
     $hash = make_hash($hashBase);
 
-    if (isset($seen[$hash])) continue;
+    if (isset($seen[$hash])) {
+      $skippedCount++;
+      continue;
+    }
 
     $nowIso = now_utc_iso();
 
@@ -157,6 +172,9 @@ if (!write_json_atomic($seenPath, $seen)) {
   exit;
 }
 
-log_message($logPath, 'Добавлено новых: ' . $addedCount);
-
-echo json_encode(['ok' => true, 'added' => $addedCount], JSON_UNESCAPED_UNICODE);
+echo json_encode([
+  'ok' => true,
+  'added' => $addedCount,
+  'skipped' => $skippedCount,
+  'errors' => $errors,
+], JSON_UNESCAPED_UNICODE);

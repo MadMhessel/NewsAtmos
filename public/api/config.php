@@ -19,33 +19,49 @@ function default_config() {
   return [
     'siteTitle' => 'Новости',
     'defaultAuthorName' => 'Редакция',
-    'defaultAuthorRole' => 'Editor',
+    'defaultAuthorRole' => 'Новости',
     'defaultCategorySlug' => 'city',
     'allowedCategories' => [
       ['slug' => 'city', 'title' => 'Город'],
-      ['slug' => 'society', 'title' => 'Общество'],
-      ['slug' => 'economy', 'title' => 'Экономика'],
+      ['slug' => 'transport', 'title' => 'Транспорт'],
+      ['slug' => 'incidents', 'title' => 'Происшествия'],
+      ['slug' => 'sports', 'title' => 'Спорт'],
+      ['slug' => 'events', 'title' => 'События'],
+      ['slug' => 'real-estate', 'title' => 'Недвижимость'],
     ],
     'pollIntervalMinutes' => 10,
     'maxNewItemsPerRun' => 50,
     'rssPollLimitPerRun' => 50,
     'incomingMaxItems' => 2000,
-    'fetchTimeoutSeconds' => 15,
-    'userAgent' => 'NewsAtmosRSS/1.0',
+    'fetchTimeoutSec' => 12,
+    'userAgent' => 'NewsAtmos/1.0',
     'dedupWindowDays' => 30,
     'stripHtml' => true,
     'normalizeWhitespace' => true,
-    'rewriteMaxChars' => 14000,
-    'rewriteRegionHint' => 'Россия',
-    'rewriteTemperature' => 0.5,
-    'rewriteIncludeSourceBlock' => true,
-    'rewriteUseSourceImage' => true,
-    'rewriteQuotesPolicy' => 'source_only',
+    'rewriteMaxChars' => 12000,
+    'rewriteRegionHint' => 'Нижний Новгород',
+    'rewriteTimeoutSec' => 25,
+    'rewriteTemperature' => 0.2,
+    'appendSourceBlock' => true,
+    'allowQuotesOnlyIfPresent' => true,
     'newsVersion' => 0,
   ];
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+  require_admin();
+  if (isset($_GET['action']) && $_GET['action'] === 'check_write') {
+    $testPath = __DIR__ . '/data/.write_test';
+    $ok = @file_put_contents($testPath, (string)time(), LOCK_EX);
+    if ($ok === false) {
+      http_response_code(500);
+      echo json_encode(['ok' => false, 'error' => 'Не удалось записать файл в /api/data'], JSON_UNESCAPED_UNICODE);
+      exit;
+    }
+    echo json_encode(['ok' => true], JSON_UNESCAPED_UNICODE);
+    exit;
+  }
+
   echo json_encode(read_json($path, default_config()), JSON_UNESCAPED_UNICODE);
   exit;
 }
@@ -92,7 +108,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
   $safe['rssPollLimitPerRun'] = $safe['maxNewItemsPerRun'];
   $safe['incomingMaxItems'] = isset($data['incomingMaxItems']) ? (int)$data['incomingMaxItems'] : $safe['incomingMaxItems'];
-  $safe['fetchTimeoutSeconds'] = isset($data['fetchTimeoutSeconds']) ? (int)$data['fetchTimeoutSeconds'] : $safe['fetchTimeoutSeconds'];
+  if (isset($data['fetchTimeoutSec'])) {
+    $safe['fetchTimeoutSec'] = (int)$data['fetchTimeoutSec'];
+  } elseif (isset($data['fetchTimeoutSeconds'])) {
+    $safe['fetchTimeoutSec'] = (int)$data['fetchTimeoutSeconds'];
+  }
   $safe['userAgent'] = isset($data['userAgent']) ? mb_substr(trim((string)$data['userAgent']), 0, 200) : $safe['userAgent'];
   $safe['dedupWindowDays'] = isset($data['dedupWindowDays']) ? (int)$data['dedupWindowDays'] : $safe['dedupWindowDays'];
   $safe['stripHtml'] = isset($data['stripHtml']) ? (bool)$data['stripHtml'] : $safe['stripHtml'];
@@ -100,12 +120,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
   $safe['rewriteMaxChars'] = isset($data['rewriteMaxChars']) ? (int)$data['rewriteMaxChars'] : $safe['rewriteMaxChars'];
   $safe['rewriteRegionHint'] = isset($data['rewriteRegionHint']) ? mb_substr(trim((string)$data['rewriteRegionHint']), 0, 200) : $safe['rewriteRegionHint'];
+  $safe['rewriteTimeoutSec'] = isset($data['rewriteTimeoutSec']) ? (int)$data['rewriteTimeoutSec'] : $safe['rewriteTimeoutSec'];
   $safe['rewriteTemperature'] = isset($data['rewriteTemperature']) ? (float)$data['rewriteTemperature'] : $safe['rewriteTemperature'];
-  $safe['rewriteIncludeSourceBlock'] = !empty($data['rewriteIncludeSourceBlock']);
-  $safe['rewriteUseSourceImage'] = !empty($data['rewriteUseSourceImage']);
-  $safe['rewriteQuotesPolicy'] = isset($data['rewriteQuotesPolicy']) && in_array($data['rewriteQuotesPolicy'], ['source_only', 'allow'], true)
-    ? $data['rewriteQuotesPolicy']
-    : $safe['rewriteQuotesPolicy'];
+  if (isset($data['appendSourceBlock'])) {
+    $safe['appendSourceBlock'] = !empty($data['appendSourceBlock']);
+  } elseif (isset($data['rewriteIncludeSourceBlock'])) {
+    $safe['appendSourceBlock'] = !empty($data['rewriteIncludeSourceBlock']);
+  }
+
+  if (isset($data['allowQuotesOnlyIfPresent'])) {
+    $safe['allowQuotesOnlyIfPresent'] = !empty($data['allowQuotesOnlyIfPresent']);
+  } elseif (isset($data['rewriteQuotesPolicy'])) {
+    $safe['allowQuotesOnlyIfPresent'] = $data['rewriteQuotesPolicy'] === 'source_only';
+  }
   $safe['newsVersion'] = isset($data['newsVersion']) ? (int)$data['newsVersion'] : $safe['newsVersion'];
 
   if (!write_json_atomic($path, $safe)) {
