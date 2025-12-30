@@ -1,0 +1,20 @@
+{
+  "siteTitle": "Новости",
+  "defaultAuthorName": "Редакция",
+  "defaultAuthorRole": "Editor",
+  "defaultCategorySlug": "city",
+  "allowedCategories": [
+    { "slug": "city", "title": "Город" },
+    { "slug": "society", "title": "Общество" },
+    { "slug": "economy", "title": "Экономика" }
+  ],
+  "rssPollLimitPerRun": 50,
+  "incomingMaxItems": 2000,
+  "rewriteMaxChars": 14000,
+  "rewriteRegionHint": "Россия",
+  "rewriteTemperature": 0.5,
+  "rewriteIncludeSourceBlock": true,
+  "rewriteUseSourceImage": true,
+  "rewriteQuotesPolicy": "source_only",
+  "newsVersion": 0
+}

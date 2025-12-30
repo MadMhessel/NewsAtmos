@@ -30,6 +30,7 @@ import AdminLayout from '@/app/admin/AdminLayout';
 import DashboardPage from '@/app/admin/DashboardPage';
 import EditorPage from '@/app/admin/EditorPage';
 import SettingsPage from '@/app/admin/SettingsPage';
+import NewsModulePage from '@/app/admin/NewsModulePage';
 
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { pathname } = useLocation();
@@ -91,6 +92,7 @@ function App() {
             <Route path="/admin" element={<AdminLayout><DashboardPage /></AdminLayout>} />
             <Route path="/admin/create" element={<AdminLayout><EditorPage /></AdminLayout>} />
             <Route path="/admin/edit/:id" element={<AdminLayout><EditorPage /></AdminLayout>} />
+            <Route path="/admin/news" element={<AdminLayout><NewsModulePage /></AdminLayout>} />
             <Route path="/admin/settings" element={<AdminLayout><SettingsPage /></AdminLayout>} />
 
             {/* System Routes */}
