@@ -31,6 +31,25 @@ function write_json_file($path, $data) {
   return rename($tmp, $path);
 }
 
+function backup_news_file($path) {
+  if (!file_exists($path)) return;
+  $dir = __DIR__ . '/backups';
+  if (!is_dir($dir)) {
+    mkdir($dir, 0755, true);
+  }
+  $timestamp = date('Ymd_His');
+  $backupPath = $dir . "/news_{$timestamp}.json";
+  copy($path, $backupPath);
+
+  $files = glob($dir . '/news_*.json');
+  rsort($files);
+  if (count($files) > 30) {
+    foreach (array_slice($files, 30) as $file) {
+      @unlink($file);
+    }
+  }
+}
+
 $method = $_SERVER['REQUEST_METHOD'];
 
 if ($method === 'GET') {
@@ -48,6 +67,8 @@ if ($method === 'POST') {
     echo json_encode(['ok' => false, 'error' => 'Некорректный JSON: ожидается массив'], JSON_UNESCAPED_UNICODE);
     exit;
   }
+
+  backup_news_file($path);
 
   if (!write_json_file($path, $data)) {
     http_response_code(500);
