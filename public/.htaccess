@@ -1,0 +1,9 @@
+# SPA маршрутизация (Apache)
+# Не трогаем существующие файлы и папки (включая /api и /uploads)
+RewriteEngine On
+
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+RewriteRule ^ index.html [L]
