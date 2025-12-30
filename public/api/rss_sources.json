@@ -1,0 +1,9 @@
+[
+  {
+    "name": "Пример источника",
+    "feedUrl": "https://site.ru/rss",
+    "category": {"slug": "city", "title": "Город"},
+    "defaultTags": ["нижний новгород"],
+    "enabled": false
+  }
+]

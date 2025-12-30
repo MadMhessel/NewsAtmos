@@ -50,6 +50,15 @@ function backup_news_file($path) {
   }
 }
 
+function require_admin_token_for_news() {
+  $token = get_header_value('X-Admin-Token');
+  if (!$token || $token !== ADMIN_TOKEN_SHA256) {
+    http_response_code(401);
+    echo json_encode(['ok' => false, 'error' => 'unauthorized'], JSON_UNESCAPED_UNICODE);
+    exit;
+  }
+}
+
 $method = $_SERVER['REQUEST_METHOD'];
 
 if ($method === 'GET') {
@@ -59,6 +68,8 @@ if ($method === 'GET') {
 }
 
 if ($method === 'POST') {
+  require_admin_token_for_news();
+
   $raw = file_get_contents('php://input');
   $data = json_decode($raw, true);
 
