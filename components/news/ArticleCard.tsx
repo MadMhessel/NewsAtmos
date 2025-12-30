@@ -11,6 +11,9 @@ export interface ArticleCardProps {
 }
 
 export const ArticleCard: React.FC<ArticleCardProps> = ({ article, variant = "default", className }) => {
+  const heroPosition = article.heroFocal
+    ? `${Math.round(article.heroFocal.x * 100)}% ${Math.round(article.heroFocal.y * 100)}%`
+    : undefined
   // Compact: Sidebar style ("Right Now")
   if (variant === "compact") {
     return (
@@ -44,6 +47,7 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({ article, variant = "de
              alt={article.title}
              fill
              className="object-cover transition-transform duration-700 group-hover:scale-105"
+             style={heroPosition ? { objectPosition: heroPosition } : undefined}
            />
            <div className="absolute top-4 left-4 z-10">
              <span className="badge-pill px-3 py-1 rounded-full bg-primary text-primary-foreground border-transparent shadow-md hover:bg-primary/90 hover:text-primary-foreground hover:border-transparent">

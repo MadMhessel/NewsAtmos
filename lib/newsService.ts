@@ -1,5 +1,5 @@
 import { MOCK_ARTICLES, CATEGORIES } from './mockData';
-import { Article, Category } from './types';
+import { Article, ArticleStatus, Category } from './types';
 
 const STORAGE_KEY = 'cc_articles_v1';
 const API_URL = '/api/news.php';
@@ -22,7 +22,10 @@ const makeLocalStorageSafe = (articles: Article[]): Article[] => {
     ...a,
     heroImage: typeof a.heroImage === 'string' && a.heroImage.startsWith('data:image/')
       ? ''
-      : a.heroImage
+      : a.heroImage,
+    heroImageSquare: typeof a.heroImageSquare === 'string' && a.heroImageSquare.startsWith('data:image/')
+      ? ''
+      : a.heroImageSquare
   }));
 };
 
@@ -38,12 +41,14 @@ function normalizeArticle(a: any): Article {
   const pinnedNowReadingRank = typeof a?.pinnedNowReadingRank === 'number' && isFinite(a.pinnedNowReadingRank)
     ? Math.max(0, Math.floor(a.pinnedNowReadingRank))
     : 0;
+  const status = (a?.status as ArticleStatus) || 'published';
 
   return {
     ...a,
     views,
     pinnedNowReading,
     pinnedNowReadingRank,
+    status,
   } as Article;
 }
 
@@ -55,6 +60,18 @@ function normalizeArticles(list: any[]): Article[] {
 // In-memory cache
 let articlesCache: Article[] = [];
 let isInitialized = false;
+
+const isPublicVisible = (article: Article, now = new Date()): boolean => {
+  const status = article.status || 'published';
+  if (status !== 'published' && status !== 'scheduled') return false;
+
+  const publishedAt = new Date(article.publishedAt);
+  if (Number.isNaN(publishedAt.getTime())) return false;
+
+  return publishedAt.getTime() <= now.getTime();
+};
+
+const withPublicVisible = (list: Article[]) => list.filter((article) => isPublicVisible(article));
 
 export const newsService = {
   // Инициализация: загрузка данных с сервера (news.json)
@@ -162,15 +179,16 @@ export const newsService = {
   // --- Read Methods (Sync, return from Cache) ---
 
   getFeatured: (): Article | undefined => {
-    return articlesCache.find(a => a.isFeatured) || articlesCache[0];
+    const visible = withPublicVisible(articlesCache);
+    return visible.find(a => a.isFeatured) || visible[0];
   },
 
   getBreaking: (): Article[] => {
-    return articlesCache.filter(a => a.isBreaking).slice(0, 5);
+    return withPublicVisible(articlesCache).filter(a => a.isBreaking).slice(0, 5);
   },
 
   getLatest: (limit = 10, excludeId?: string): Article[] => {
-    let articles = [...articlesCache].sort((a, b) => 
+    let articles = [...withPublicVisible(articlesCache)].sort((a, b) => 
       new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
     );
     if (excludeId) {
@@ -193,7 +211,7 @@ export const newsService = {
     const maxAgeHours = typeof opts?.maxAgeHours === 'number' && isFinite(opts.maxAgeHours) ? opts.maxAgeHours : 72;
     const cutoff = Date.now() - maxAgeHours * 60 * 60 * 1000;
 
-    const all = [...articlesCache].filter(a => !exclude.has(a.id));
+    const all = [...withPublicVisible(articlesCache)].filter(a => !exclude.has(a.id));
 
     const pinned = all
       .filter(a => a.pinnedNowReading)
@@ -262,19 +280,19 @@ export const newsService = {
     }
   },
   getAll: (): Article[] => {
-    return [...articlesCache].sort((a, b) => 
+    return [...withPublicVisible(articlesCache)].sort((a, b) => 
         new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
     );
   },
 
   getByCategory: (slug: string): Article[] => {
-    return articlesCache
+    return withPublicVisible(articlesCache)
       .filter(a => a.category.slug === slug)
       .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
   },
 
   getBySlug: (slug: string): Article | undefined => {
-    return articlesCache.find(a => a.slug === slug);
+    return withPublicVisible(articlesCache).find(a => a.slug === slug);
   },
   
   getById: (id: string): Article | undefined => {
@@ -283,7 +301,7 @@ export const newsService = {
 
   search: (query: string): Article[] => {
     const q = query.toLowerCase();
-    return articlesCache.filter(a => 
+    return withPublicVisible(articlesCache).filter(a => 
       a.title.toLowerCase().includes(q) || 
       a.excerpt.toLowerCase().includes(q) ||
       a.content.some(block => {
@@ -298,9 +316,19 @@ export const newsService = {
   getCategories: (): Category[] => CATEGORIES,
 
   getRelated: (article: Article): Article[] => {
-    return articlesCache
+    return withPublicVisible(articlesCache)
       .filter(a => a.category.slug === article.category.slug && a.id !== article.id)
       .slice(0, 4);
+  },
+
+  getAllAdmin: (): Article[] => {
+    return [...articlesCache].sort((a, b) => 
+      new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
+    );
+  },
+
+  getBySlugAdmin: (slug: string): Article | undefined => {
+    return articlesCache.find(a => a.slug === slug);
   },
 
   // --- Write Methods ---
@@ -320,6 +348,26 @@ export const newsService = {
 
   deleteArticle: async (id: string) => {
     articlesCache = articlesCache.filter(a => a.id !== id);
+    await newsService.save();
+  },
+
+  moveToTrash: async (id: string) => {
+    const article = articlesCache.find(a => a.id === id);
+    if (!article) return;
+    article.status = 'trash';
+    article.deletedAt = new Date().toISOString();
+    await newsService.save();
+  },
+
+  updateStatus: async (id: string, status: ArticleStatus) => {
+    const article = articlesCache.find(a => a.id === id);
+    if (!article) return;
+    article.status = status;
+    if (status === 'trash') {
+      article.deletedAt = new Date().toISOString();
+    } else {
+      article.deletedAt = undefined;
+    }
     await newsService.save();
   }
 };
