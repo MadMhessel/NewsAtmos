@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Link from '@/lib/next-shim';
 import { Button } from '@/components/ui/button';
-import { LayoutDashboard, FileText, Settings, LogOut, Plus } from 'lucide-react';
+import { LayoutDashboard, FileText, Settings, LogOut, Plus, Newspaper } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import LoginPage from '@/app/admin/LoginPage';
 
@@ -35,6 +35,7 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
   const navItems = [
     { href: '/admin', label: 'Все новости', icon: FileText },
+    { href: '/admin/news', label: 'Новости', icon: Newspaper },
     { href: '/admin/create', label: 'Создать новость', icon: Plus },
     { href: '/admin/settings', label: 'Настройки', icon: Settings },
   ];

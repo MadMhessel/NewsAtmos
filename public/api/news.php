@@ -5,6 +5,8 @@ header('Pragma: no-cache');
 
 require_once __DIR__ . '/_auth.php';
 
+$configPath = __DIR__ . '/data/config.json';
+
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
   header('Access-Control-Allow-Origin: *');
   header('Access-Control-Allow-Headers: Content-Type, X-Admin-Token');
@@ -25,6 +27,25 @@ function read_json_file($path) {
 function write_json_file($path, $data) {
   $json = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
   if ($json === false) return false;
+  $tmp = $path . '.tmp';
+  $ok = file_put_contents($tmp, $json, LOCK_EX);
+  if ($ok === false) return false;
+  return rename($tmp, $path);
+}
+
+function read_config($path) {
+  if (!file_exists($path)) return [];
+  $raw = file_get_contents($path);
+  if ($raw === false || trim($raw) === '') return [];
+  $data = json_decode($raw, true);
+  return is_array($data) ? $data : [];
+}
+
+function write_config($path, $data) {
+  $json = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+  if ($json === false) return false;
+  $dir = dirname($path);
+  if (!is_dir($dir)) return false;
   $tmp = $path . '.tmp';
   $ok = file_put_contents($tmp, $json, LOCK_EX);
   if ($ok === false) return false;
@@ -86,6 +107,10 @@ if ($method === 'POST') {
     echo json_encode(['ok' => false, 'error' => 'Не удалось сохранить файл (права доступа?)'], JSON_UNESCAPED_UNICODE);
     exit;
   }
+
+  $config = read_config($configPath);
+  $config['newsVersion'] = isset($config['newsVersion']) ? ((int)$config['newsVersion'] + 1) : 1;
+  write_config($configPath, $config);
 
   echo json_encode(['ok' => true], JSON_UNESCAPED_UNICODE);
   exit;
