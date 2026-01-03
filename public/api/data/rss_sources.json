@@ -1,34 +1,292 @@
 [
-    {
-        "name": "Пример источника",
-        "feedUrl": "https:\/\/site.ru\/rss",
-        "category": {
-            "slug": "city",
-            "title": "Город"
-        },
-        "defaultTags": [
-            "нижний новгород"
-        ],
-        "enabled": false
+  {
+    "name": "НИА «Нижний Новгород»",
+    "feedUrl": "https://www.niann.ru/rss",
+    "category": {
+      "slug": "nn-region",
+      "title": "Нижний Новгород и область"
     },
-    {
-        "name": "rbc",
-        "feedUrl": "https:\/\/rssexport.rbc.ru\/rbcnews\/news\/30\/full.rss",
-        "category": {
-            "slug": "city",
-            "title": "Город"
-        },
-        "defaultTags": [],
-        "enabled": true
+    "defaultTags": [],
+    "enabled": true
+  },
+  {
+    "name": "«Время Н»",
+    "feedUrl": "https://www.vremyan.ru/rss/news.rss",
+    "category": {
+      "slug": "nn-region",
+      "title": "Нижний Новгород и область"
     },
-    {
-        "name": "риа",
-        "feedUrl": "https:\/\/ria.ru\/export\/rss2\/archive\/index.xml",
-        "category": {
-            "slug": "city",
-            "title": "Город"
-        },
-        "defaultTags": [],
-        "enabled": true
-    }
+    "defaultTags": [],
+    "enabled": true
+  },
+  {
+    "name": "ИА «НТА-Приволжье» (НН/ПФО)",
+    "feedUrl": "https://nta-pfo.ru/rss/",
+    "category": {
+      "slug": "nn-region",
+      "title": "Нижний Новгород и область"
+    },
+    "defaultTags": [],
+    "enabled": true
+  },
+  {
+    "name": "Newsroom24 (НН)",
+    "feedUrl": "https://newsroom24.ru/rss4/",
+    "category": {
+      "slug": "nn-region",
+      "title": "Нижний Новгород и область"
+    },
+    "defaultTags": [],
+    "enabled": true
+  },
+  {
+    "name": "ТАСС",
+    "feedUrl": "https://tass.ru/rss/google.xml",
+    "category": {
+      "slug": "federal",
+      "title": "Федеральные СМИ"
+    },
+    "defaultTags": [],
+    "enabled": true
+  },
+  {
+    "name": "Интерфакс (страница RSS)",
+    "feedUrl": "https://www.interfax.ru/rss.asp",
+    "category": {
+      "slug": "federal",
+      "title": "Федеральные СМИ"
+    },
+    "defaultTags": [],
+    "enabled": true
+  },
+  {
+    "name": "РБК (новости)",
+    "feedUrl": "https://rssexport.rbc.ru/rbcnews/news/30/full.rss",
+    "category": {
+      "slug": "federal",
+      "title": "Федеральные СМИ"
+    },
+    "defaultTags": [],
+    "enabled": true
+  },
+  {
+    "name": "Лента.ру (список и шаблоны лент)",
+    "feedUrl": "https://lenta.ru/info/posts/export/",
+    "category": {
+      "slug": "federal",
+      "title": "Федеральные СМИ"
+    },
+    "defaultTags": [],
+    "enabled": true
+  },
+  {
+    "name": "Коммерсантъ (главное)",
+    "feedUrl": "https://www.kommersant.ru/RSS/main.xml",
+    "category": {
+      "slug": "federal",
+      "title": "Федеральные СМИ"
+    },
+    "defaultTags": [],
+    "enabled": true
+  },
+  {
+    "name": "Коммерсантъ (каталог лент)",
+    "feedUrl": "https://www.kommersant.ru/rss-list",
+    "category": {
+      "slug": "federal",
+      "title": "Федеральные СМИ"
+    },
+    "defaultTags": [],
+    "enabled": true
+  },
+  {
+    "name": "Московский комсомолец (каталог лент)",
+    "feedUrl": "https://www.mk.ru/rss/",
+    "category": {
+      "slug": "federal",
+      "title": "Федеральные СМИ"
+    },
+    "defaultTags": [],
+    "enabled": true
+  },
+  {
+    "name": "Ведомости (каталог лент)",
+    "feedUrl": "https://www.vedomosti.ru/info/rss",
+    "category": {
+      "slug": "federal",
+      "title": "Федеральные СМИ"
+    },
+    "defaultTags": [],
+    "enabled": true
+  },
+  {
+    "name": "Газета.Ru",
+    "feedUrl": "https://www.gazeta.ru/rss",
+    "category": {
+      "slug": "federal",
+      "title": "Федеральные СМИ"
+    },
+    "defaultTags": [],
+    "enabled": true
+  },
+  {
+    "name": "Ведомости — все новости",
+    "feedUrl": "https://www.vedomosti.ru/rss/news",
+    "category": {
+      "slug": "business",
+      "title": "Экономика и недвижимость"
+    },
+    "defaultTags": [],
+    "enabled": true
+  },
+  {
+    "name": "Ведомости — недвижимость",
+    "feedUrl": "https://www.vedomosti.ru/rss/rubric/realty",
+    "category": {
+      "slug": "business",
+      "title": "Экономика и недвижимость"
+    },
+    "defaultTags": [],
+    "enabled": true
+  },
+  {
+    "name": "Ведомости — стройки и инфраструктура",
+    "feedUrl": "https://www.vedomosti.ru/rss/rubric/realty/infrastructure",
+    "category": {
+      "slug": "business",
+      "title": "Экономика и недвижимость"
+    },
+    "defaultTags": [],
+    "enabled": true
+  },
+  {
+    "name": "Ведомости — архитектура и дизайн",
+    "feedUrl": "https://www.vedomosti.ru/rss/rubric/realty/architecture",
+    "category": {
+      "slug": "business",
+      "title": "Экономика и недвижимость"
+    },
+    "defaultTags": [],
+    "enabled": true
+  },
+  {
+    "name": "РБК (единая новостная лента)",
+    "feedUrl": "https://rssexport.rbc.ru/rbcnews/news/30/full.rss",
+    "category": {
+      "slug": "business",
+      "title": "Экономика и недвижимость"
+    },
+    "defaultTags": [],
+    "enabled": true
+  },
+  {
+    "name": "Коммерсантъ (каталог лент по разделам)",
+    "feedUrl": "https://www.kommersant.ru/rss-list",
+    "category": {
+      "slug": "business",
+      "title": "Экономика и недвижимость"
+    },
+    "defaultTags": [],
+    "enabled": true
+  },
+  {
+    "name": "Интерфакс (страница RSS)",
+    "feedUrl": "https://www.interfax.ru/rss.asp",
+    "category": {
+      "slug": "business",
+      "title": "Экономика и недвижимость"
+    },
+    "defaultTags": [],
+    "enabled": true
+  },
+  {
+    "name": "Лента.ру — новости",
+    "feedUrl": "https://lenta.ru/rss/news",
+    "category": {
+      "slug": "society",
+      "title": "Политика и общество"
+    },
+    "defaultTags": [],
+    "enabled": true
+  },
+  {
+    "name": "Лента.ру — топ-7",
+    "feedUrl": "https://lenta.ru/rss/top7",
+    "category": {
+      "slug": "society",
+      "title": "Политика и общество"
+    },
+    "defaultTags": [],
+    "enabled": true
+  },
+  {
+    "name": "Лента.ру — главные за 24 часа",
+    "feedUrl": "https://lenta.ru/rss/last24",
+    "category": {
+      "slug": "society",
+      "title": "Политика и общество"
+    },
+    "defaultTags": [],
+    "enabled": true
+  },
+  {
+    "name": "Лента.ру — Россия",
+    "feedUrl": "https://lenta.ru/rss/news/russia",
+    "category": {
+      "slug": "society",
+      "title": "Политика и общество"
+    },
+    "defaultTags": [],
+    "enabled": true
+  },
+  {
+    "name": "Лента.ру — Мир",
+    "feedUrl": "https://lenta.ru/rss/news/world",
+    "category": {
+      "slug": "society",
+      "title": "Политика и общество"
+    },
+    "defaultTags": [],
+    "enabled": true
+  },
+  {
+    "name": "Коммерсантъ — главное",
+    "feedUrl": "https://www.kommersant.ru/RSS/main.xml",
+    "category": {
+      "slug": "society",
+      "title": "Политика и общество"
+    },
+    "defaultTags": [],
+    "enabled": true
+  },
+  {
+    "name": "Коммерсантъ — каталог лент",
+    "feedUrl": "https://www.kommersant.ru/rss-list",
+    "category": {
+      "slug": "society",
+      "title": "Политика и общество"
+    },
+    "defaultTags": [],
+    "enabled": true
+  },
+  {
+    "name": "МК — новостная лента",
+    "feedUrl": "https://www.mk.ru/rss/news/index.xml",
+    "category": {
+      "slug": "society",
+      "title": "Политика и общество"
+    },
+    "defaultTags": [],
+    "enabled": true
+  },
+  {
+    "name": "МК — каталог лент",
+    "feedUrl": "https://www.mk.ru/rss/",
+    "category": {
+      "slug": "society",
+      "title": "Политика и общество"
+    },
+    "defaultTags": [],
+    "enabled": true
+  }
 ]
