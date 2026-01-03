@@ -90,18 +90,19 @@ export default function ArticlePage() {
 
         {/* Hero Image */}
         {article.heroImage && (
-          <div className="relative aspect-[16/9] w-full max-w-[1000px] mx-auto mb-16 overflow-hidden rounded-lg bg-gray-100 dark:bg-muted">
-             <Image 
-               src={article.heroImage} 
-               alt={article.title}
-               fill
-               priority
-               className="object-cover"
-             />
-             <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-6">
-                <p className="text-white/80 text-xs font-medium">Фото: Источник / Пресс-служба</p>
-             </div>
-          </div>
+          <figure className="mx-auto mb-16 w-full max-w-[1000px]">
+            <div className="flex justify-center rounded-lg bg-gray-100 dark:bg-muted p-2">
+              <Image 
+                src={article.heroImage} 
+                alt={article.title}
+                priority
+                className="h-auto w-auto max-w-full rounded-md"
+              />
+            </div>
+            <figcaption className="mt-3 text-xs font-medium text-muted-foreground">
+              Фото: Источник / Пресс-служба
+            </figcaption>
+          </figure>
         )}
         
         <div className="mx-auto max-w-[760px]">
