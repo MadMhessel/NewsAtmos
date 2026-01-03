@@ -1,8 +1,10 @@
 import React, { useState } from "react"
 import { newsService } from "@/lib/newsService"
+import { liveService } from "@/lib/liveService"
 import { FeaturedArticle } from "@/components/news/FeaturedArticle"
 import { BreakingList } from "@/components/news/BreakingList"
 import { ArticleCard } from "@/components/news/ArticleCard"
+import { LivePinnedCard } from "@/components/live/LivePinnedCard"
 import { Button } from "@/components/ui/button"
 import { useSiteSettings } from "@/components/shared/SiteSettingsProvider"
 import { Send, Loader2 } from "lucide-react"
@@ -15,6 +17,7 @@ export default function HomePage() {
 
   const featured = newsService.getFeatured()
   const breaking = newsService.getBreaking()
+  const pinnedLive = liveService.getPinned()
   // Fetch more articles to accommodate pagination
   const allLatest = newsService.getLatest(60, featured?.id)
 
@@ -44,6 +47,21 @@ export default function HomePage() {
   return (
     <>
       <BreakingList articles={breakingForTicker} />
+
+      {pinnedLive.length > 0 && (
+        <section className="container py-10 md:py-12">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-bold tracking-tight text-foreground relative pl-4 after:absolute after:left-0 after:top-1 after:bottom-1 after:w-1 after:bg-destructive after:rounded-full">
+              Онлайн-новости
+            </h2>
+          </div>
+          <div className="grid gap-6 md:grid-cols-2">
+            {pinnedLive.map(stream => (
+              <LivePinnedCard key={stream.id} stream={stream} />
+            ))}
+          </div>
+        </section>
+      )}
       
       <div className="container py-10 md:py-16">
         {featured && <FeaturedArticle article={featured} />}

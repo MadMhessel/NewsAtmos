@@ -4,6 +4,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'r
 import { ThemeProvider } from '@/components/shared/ThemeProvider';
 import { SiteSettingsProvider } from '@/components/shared/SiteSettingsProvider';
 import { newsService } from '@/lib/newsService';
+import { liveService } from '@/lib/liveService';
 import './app/globals.css';
 
 // Layout
@@ -24,6 +25,7 @@ import MenuPage from '@/app/menu/page';
 import PrivacyPage from '@/app/privacy/page';
 import TermsPage from '@/app/terms/page';
 import NotFound from '@/app/not-found';
+import LiveStreamPage from '@/app/live/[slug]/page';
 
 // Admin Pages
 import AdminLayout from '@/app/admin/AdminLayout';
@@ -31,6 +33,8 @@ import DashboardPage from '@/app/admin/DashboardPage';
 import EditorPage from '@/app/admin/EditorPage';
 import SettingsPage from '@/app/admin/SettingsPage';
 import NewsModulePage from '@/app/admin/NewsModulePage';
+import LiveStreamsPage from '@/app/admin/LiveStreamsPage';
+import LiveStreamEditorPage from '@/app/admin/LiveStreamEditorPage';
 
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { pathname } = useLocation();
@@ -60,8 +64,8 @@ function App() {
 
   useEffect(() => {
     // Init data from server or localstorage before rendering
-    newsService.init().then(() => {
-        setIsReady(true);
+    Promise.all([newsService.init(), liveService.init()]).then(() => {
+      setIsReady(true);
     });
   }, []);
 
@@ -86,6 +90,7 @@ function App() {
             <Route path="/menu" element={<MenuPage />} />
             <Route path="/privacy" element={<PrivacyPage />} />
             <Route path="/terms" element={<TermsPage />} />
+            <Route path="/live/:slug" element={<LiveStreamPage />} />
             
             {/* Admin Routes */}
             <Route path="/admin/login" element={<Navigate to="/admin" replace />} />
@@ -93,6 +98,9 @@ function App() {
             <Route path="/admin/create" element={<AdminLayout><EditorPage /></AdminLayout>} />
             <Route path="/admin/edit/:id" element={<AdminLayout><EditorPage /></AdminLayout>} />
             <Route path="/admin/news" element={<AdminLayout><NewsModulePage /></AdminLayout>} />
+            <Route path="/admin/live" element={<AdminLayout><LiveStreamsPage /></AdminLayout>} />
+            <Route path="/admin/live/create" element={<AdminLayout><LiveStreamEditorPage /></AdminLayout>} />
+            <Route path="/admin/live/:id" element={<AdminLayout><LiveStreamEditorPage /></AdminLayout>} />
             <Route path="/admin/settings" element={<AdminLayout><SettingsPage /></AdminLayout>} />
 
             {/* System Routes */}

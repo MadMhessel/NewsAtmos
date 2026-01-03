@@ -1,4 +1,4 @@
-import { Article, Category, ContentBlock } from './types';
+import { Article, Category, ContentBlock, LiveStream, LiveUpdate } from './types';
 
 export const CATEGORIES: Category[] = [
   { slug: 'city', title: 'Город' },
@@ -150,4 +150,63 @@ export const MOCK_ARTICLES: Article[] = [
     heroImage: `https://loremflickr.com/800/600/city,urban?lock=${i}`,
     readingTime: 3,
   }))
+];
+
+const liveBaseTime = Date.now();
+
+export const MOCK_LIVE_STREAMS: LiveStream[] = [
+  {
+    id: 'live-1',
+    slug: 'city-marathon-live',
+    title: 'Онлайн: городской марафон — старт, перекрытия, результаты',
+    lead: 'Следим в реальном времени за стартом, перекрытиями улиц и финишем участников.',
+    coverImage: 'https://loremflickr.com/1200/800/marathon,city',
+    category: { slug: 'events', title: 'Афиша' },
+    tags: ['марафон', 'спорт', 'центр'],
+    status: 'published',
+    pinned: true,
+    pinnedOrder: 1,
+    createdAt: new Date(liveBaseTime - 1000 * 60 * 90).toISOString(),
+    updatedAt: new Date(liveBaseTime - 1000 * 60 * 4).toISOString(),
+  },
+];
+
+export const MOCK_LIVE_UPDATES: LiveUpdate[] = [
+  {
+    id: 'live-1-update-1',
+    liveStreamId: 'live-1',
+    eventTime: new Date(liveBaseTime - 1000 * 60 * 70).toISOString(),
+    text: 'Открыли стартовый коридор, участники собираются на площади.',
+    type: 'milestone',
+    createdAt: new Date(liveBaseTime - 1000 * 60 * 70).toISOString(),
+    updatedAt: new Date(liveBaseTime - 1000 * 60 * 70).toISOString(),
+  },
+  {
+    id: 'live-1-update-2',
+    liveStreamId: 'live-1',
+    eventTime: new Date(liveBaseTime - 1000 * 60 * 55).toISOString(),
+    text: 'Стартовали первые участники. Движение в центре перекрыто до 14:00.',
+    type: 'update',
+    sourceName: 'Дирекция марафона',
+    createdAt: new Date(liveBaseTime - 1000 * 60 * 55).toISOString(),
+    updatedAt: new Date(liveBaseTime - 1000 * 60 * 55).toISOString(),
+  },
+  {
+    id: 'live-1-update-3',
+    liveStreamId: 'live-1',
+    eventTime: new Date(liveBaseTime - 1000 * 60 * 35).toISOString(),
+    text: 'На финише готовится зона награждения, волонтёры раздают воду.',
+    type: 'update',
+    createdAt: new Date(liveBaseTime - 1000 * 60 * 35).toISOString(),
+    updatedAt: new Date(liveBaseTime - 1000 * 60 * 35).toISOString(),
+  },
+  {
+    id: 'live-1-update-4',
+    liveStreamId: 'live-1',
+    eventTime: new Date(liveBaseTime - 1000 * 60 * 10).toISOString(),
+    text: 'Первые участники финишировали, время лидера — 1:05:42.',
+    type: 'milestone',
+    createdAt: new Date(liveBaseTime - 1000 * 60 * 10).toISOString(),
+    updatedAt: new Date(liveBaseTime - 1000 * 60 * 10).toISOString(),
+  },
 ];

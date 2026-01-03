@@ -62,3 +62,36 @@ export type Article = {
   relatedIds?: string[];
   sourceIncomingId?: string;
 };
+
+export type LiveStreamStatus = 'draft' | 'published' | 'finished';
+
+export type LiveUpdateType = 'update' | 'milestone';
+
+export type LiveStream = {
+  id: string;
+  slug: string;
+  title: string;
+  lead: string;
+  body?: string;
+  coverImage?: string;
+  category?: Category;
+  tags?: string[];
+  status?: LiveStreamStatus;
+  pinned?: boolean;
+  pinnedOrder?: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type LiveUpdate = {
+  id: string;
+  liveStreamId: string;
+  eventTime: string;
+  text: string;
+  type: LiveUpdateType;
+  sourceName?: string;
+  sourceUrl?: string;
+  mediaUrl?: string;
+  createdAt: string;
+  updatedAt?: string;
+};
