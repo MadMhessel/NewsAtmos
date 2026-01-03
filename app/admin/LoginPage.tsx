@@ -34,6 +34,11 @@ export default function LoginPage({ redirectTo = '/admin', onSuccess }: { redire
         if (response.ok) {
           sessionStorage.setItem('admin_auth', 'true');
           sessionStorage.setItem('admin_token', password);
+          try {
+            localStorage.setItem('admin_token', password);
+          } catch {
+            // ignore storage errors
+          }
           onSuccess?.();
           navigate(redirectTo, { replace: true });
           return;
@@ -50,6 +55,11 @@ export default function LoginPage({ redirectTo = '/admin', onSuccess }: { redire
       if (hash === ADMIN_PASSWORD_SHA256) {
         sessionStorage.setItem('admin_auth', 'true');
         sessionStorage.setItem('admin_token', password);
+        try {
+          localStorage.setItem('admin_token', password);
+        } catch {
+          // ignore storage errors
+        }
         onSuccess?.();
         navigate(redirectTo, { replace: true });
         return;
