@@ -117,6 +117,7 @@ const defaultConfig: Config = {
     { slug: 'city', title: 'Город' },
     { slug: 'transport', title: 'Транспорт' },
     { slug: 'incidents', title: 'Происшествия' },
+    { slug: 'russia-world', title: 'Россия и Мир' },
     { slug: 'sports', title: 'Спорт' },
     { slug: 'events', title: 'События' },
     { slug: 'real-estate', title: 'Недвижимость' },
@@ -679,7 +680,7 @@ const NewsModulePage: React.FC = () => {
     }
   };
 
-  const runRssPull = async () => {
+  const runRssPull = async (): Promise<boolean> => {
     setStatusMessage(null);
     setRssPullResult(null);
     try {
@@ -690,9 +691,20 @@ const NewsModulePage: React.FC = () => {
       }
       setRssPullResult(JSON.stringify(data, null, 2));
       setStatusMessage({ type: 'ok', text: `Сбор запущен. Добавлено: ${data?.added ?? 0}.` });
+      return true;
     } catch (e: any) {
       setStatusMessage({ type: 'err', text: e?.message || 'Не удалось запустить сбор.' });
+      return false;
     }
+  };
+
+  const refreshIncomingFromRss = async () => {
+    setIsBusy(true);
+    const ok = await runRssPull();
+    if (ok) {
+      await loadIncoming();
+    }
+    setIsBusy(false);
   };
 
   const updateRssSource = (idx: number, patch: Partial<RssSource>) => {
@@ -804,7 +816,7 @@ const NewsModulePage: React.FC = () => {
                   <option value="error">Ошибка</option>
                   <option value="published">Опубликована</option>
                 </select>
-                <Button variant="secondary" onClick={loadIncoming} disabled={isBusy}>
+                <Button variant="secondary" onClick={refreshIncomingFromRss} disabled={isBusy}>
                   <RefreshCw className="w-4 h-4 mr-2" /> Обновить
                 </Button>
                 <div className="ml-auto text-xs text-muted-foreground">Всего: {filteredIncoming.length}</div>
