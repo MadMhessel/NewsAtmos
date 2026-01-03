@@ -7,7 +7,7 @@ import { LiveStream, LiveStreamStatus, LiveUpdate, LiveUpdateType } from "@/lib/
 import { CATEGORIES } from "@/lib/mockData";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { cn, formatDateShort } from "@/lib/utils";
+import { cn, formatDateShort, slugify } from "@/lib/utils";
 import {
   ArrowLeft,
   ArrowDown,
@@ -34,15 +34,6 @@ const UPDATE_TYPES: { value: LiveUpdateType; label: string }[] = [
   { value: 'update', label: 'Обновление' },
   { value: 'milestone', label: 'Веха' },
 ];
-
-const slugify = (value: string) => {
-  return value
-    .toLowerCase()
-    .trim()
-    .replace(/\s+/g, '-')
-    .replace(/[^a-z0-9а-яё-]/gi, '')
-    .replace(/-+/g, '-');
-};
 
 const toLocalInputValue = (iso?: string) => {
   if (!iso) return '';

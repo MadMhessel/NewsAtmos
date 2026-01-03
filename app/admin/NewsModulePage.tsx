@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Article, ArticleStatus, ContentBlock } from '@/lib/types';
 import { newsService } from '@/lib/newsService';
-import { formatDateShort } from '@/lib/utils';
+import { formatDateShort, slugify } from '@/lib/utils';
 import { Check, Copy, ExternalLink, Loader2, Plus, RefreshCw, Search, Trash2, Wand2, X } from 'lucide-react';
 
 const API_INCOMING = '/api/incoming.php';
@@ -91,15 +91,6 @@ const apiFetch = async (url: string, options: RequestInit = {}) => {
   if (token) headers.set('X-Admin-Token', token);
   const res = await fetch(url, { ...options, headers });
   return res;
-};
-
-const slugify = (value: string) => {
-  return value
-    .toLowerCase()
-    .trim()
-    .replace(/\s+/g, '-')
-    .replace(/[^a-z0-9а-яё-]/gi, '')
-    .replace(/-+/g, '-');
 };
 
 const normalizeBlocks = (blocks?: ContentBlock[]) => {

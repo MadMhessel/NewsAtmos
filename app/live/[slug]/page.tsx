@@ -82,6 +82,7 @@ export default function LiveStreamPage() {
   const sortedUpdates = useMemo(() => sortUpdates(updates, order), [updates, order]);
   const visibleUpdates = sortedUpdates.slice(0, visibleCount);
   const hasMore = sortedUpdates.length > visibleCount;
+  const latestUpdates = useMemo(() => sortUpdates(updates, 'desc').slice(0, 6), [updates]);
 
   if (!stream) {
     return notFound();
@@ -166,34 +167,7 @@ export default function LiveStreamPage() {
           </div>
         )}
 
-        <div className="mx-auto max-w-[980px] grid gap-10 lg:grid-cols-[280px_1fr]">
-          <aside className="space-y-6 lg:sticky lg:top-24 h-fit">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-accent">Оглавление</h3>
-              <Button variant="ghost" size="sm" onClick={handleToggleOrder} className="h-8 gap-2">
-                <ArrowDownUp className="w-4 h-4" />
-                {order === 'desc' ? 'Сначала новые' : 'Сначала старые'}
-              </Button>
-            </div>
-            <div className="space-y-3 text-sm">
-              {milestones.length === 0 && (
-                <p className="text-muted-foreground text-sm">Вехи появятся по мере обновлений.</p>
-              )}
-              {milestones.map((item) => (
-                <a
-                  key={item.id}
-                  href={`#update-${item.id}`}
-                  className="block text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <span className="text-accent font-semibold mr-2">
-                    {new Date(item.eventTime).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
-                  </span>
-                  {item.text}
-                </a>
-              ))}
-            </div>
-          </aside>
-
+        <div className="mx-auto max-w-[1120px] grid gap-10 lg:grid-cols-[1fr_320px]">
           <section className="space-y-6">
             {pendingUpdates.length > 0 && (
               <button
@@ -258,6 +232,57 @@ export default function LiveStreamPage() {
               </Button>
             )}
           </section>
+
+          <aside className="space-y-8 lg:sticky lg:top-24 h-fit">
+            <div className="rounded-xl border border-border bg-card p-5 shadow-sm space-y-4">
+              <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-accent">Сводка последних событий</h3>
+              {latestUpdates.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Пока нет обновлений.</p>
+              ) : (
+                <div className="space-y-3 text-sm">
+                  {latestUpdates.map((item) => (
+                    <a
+                      key={item.id}
+                      href={`#update-${item.id}`}
+                      className="block rounded-lg border border-border/60 px-3 py-2 hover:border-accent/40 hover:text-foreground transition-colors"
+                    >
+                      <div className="text-[11px] font-semibold text-accent uppercase tracking-widest mb-1">
+                        {new Date(item.eventTime).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
+                      </div>
+                      <div className="text-sm text-foreground/80 line-clamp-3">{item.text}</div>
+                    </a>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-accent">Оглавление</h3>
+                <Button variant="ghost" size="sm" onClick={handleToggleOrder} className="h-8 gap-2">
+                  <ArrowDownUp className="w-4 h-4" />
+                  {order === 'desc' ? 'Сначала новые' : 'Сначала старые'}
+                </Button>
+              </div>
+              <div className="space-y-3 text-sm">
+                {milestones.length === 0 && (
+                  <p className="text-muted-foreground text-sm">Вехи появятся по мере обновлений.</p>
+                )}
+                {milestones.map((item) => (
+                  <a
+                    key={item.id}
+                    href={`#update-${item.id}`}
+                    className="block text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <span className="text-accent font-semibold mr-2">
+                      {new Date(item.eventTime).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                    {item.text}
+                  </a>
+                ))}
+              </div>
+            </div>
+          </aside>
         </div>
       </article>
     </div>
