@@ -36,6 +36,7 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const navItems = [
     { href: '/admin', label: 'Все новости', icon: FileText },
     { href: '/admin/news', label: 'Новости', icon: Newspaper },
+    { href: '/admin/live', label: 'Онлайн-новости', icon: LayoutDashboard },
     { href: '/admin/create', label: 'Создать новость', icon: Plus },
     { href: '/admin/settings', label: 'Настройки', icon: Settings },
   ];
@@ -50,7 +51,7 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         
         <nav className="flex-1 p-4 space-y-2">
             {navItems.map((item) => {
-                const isActive = location.pathname === item.href;
+                const isActive = location.pathname === item.href || (item.href !== '/admin' && location.pathname.startsWith(item.href));
                 return (
                     <Link 
                         key={item.href} 
