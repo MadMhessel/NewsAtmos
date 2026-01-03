@@ -7,6 +7,7 @@ import { ArticleCard } from "@/components/news/ArticleCard"
 import { LivePinnedCard } from "@/components/live/LivePinnedCard"
 import { Button } from "@/components/ui/button"
 import { useSiteSettings } from "@/components/shared/SiteSettingsProvider"
+import Link from "@/lib/next-shim"
 import { Send, Loader2 } from "lucide-react"
 
 export default function HomePage() {
@@ -18,6 +19,10 @@ export default function HomePage() {
   const featured = newsService.getFeatured()
   const breaking = newsService.getBreaking()
   const pinnedLive = liveService.getPinned()
+  const primaryLive = pinnedLive[0]
+  const latestLiveUpdates = primaryLive
+    ? liveService.getUpdatesByStreamId(primaryLive.id, 'desc').slice(0, 6)
+    : []
   // Fetch more articles to accommodate pagination
   const allLatest = newsService.getLatest(60, featured?.id)
 
@@ -55,10 +60,43 @@ export default function HomePage() {
               Онлайн-новости
             </h2>
           </div>
-          <div className="grid gap-6 md:grid-cols-2">
-            {pinnedLive.map(stream => (
-              <LivePinnedCard key={stream.id} stream={stream} />
-            ))}
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:items-start">
+            <div className="grid gap-6">
+              {pinnedLive.map(stream => (
+                <LivePinnedCard key={stream.id} stream={stream} />
+              ))}
+            </div>
+            {primaryLive && (
+              <aside className="rounded-xl border border-border bg-card p-5 shadow-sm space-y-4 lg:sticky lg:top-24 h-fit">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-accent">Сводка последних событий</h3>
+                  <Link
+                    href={`/live/${primaryLive.slug}`}
+                    className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground hover:text-accent"
+                  >
+                    К трансляции
+                  </Link>
+                </div>
+                {latestLiveUpdates.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Пока нет обновлений.</p>
+                ) : (
+                  <div className="space-y-3 text-sm">
+                    {latestLiveUpdates.map((item) => (
+                      <Link
+                        key={item.id}
+                        href={`/live/${primaryLive.slug}#update-${item.id}`}
+                        className="block rounded-lg border border-border/60 px-3 py-2 hover:border-accent/40 hover:text-foreground transition-colors"
+                      >
+                        <div className="text-[11px] font-semibold text-accent uppercase tracking-widest mb-1">
+                          {new Date(item.eventTime).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                        <div className="text-sm text-foreground/80 line-clamp-3">{item.text}</div>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </aside>
+            )}
           </div>
         </section>
       )}

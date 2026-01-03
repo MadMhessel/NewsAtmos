@@ -8,7 +8,8 @@ const VIEW_URL = '/api/view.php';
 
 const getAdminToken = () => {
   try {
-    return typeof window !== 'undefined' ? sessionStorage.getItem('admin_token') : null;
+    if (typeof window === 'undefined') return null;
+    return sessionStorage.getItem('admin_token') || localStorage.getItem('admin_token');
   } catch {
     return null;
   }
