@@ -309,6 +309,20 @@ const buildDefaultRssSources = (categories: { slug: string; title: string }[]): 
   }));
 };
 
+const normalizeFeedUrl = (value: string) => value.trim().toLowerCase();
+
+const mergeRssSources = (current: RssSource[], additions: RssSource[]) => {
+  const existing = new Set(current.map((source) => normalizeFeedUrl(source.feedUrl)));
+  const next = [...current];
+  additions.forEach((source) => {
+    const normalized = normalizeFeedUrl(source.feedUrl);
+    if (!normalized || existing.has(normalized)) return;
+    existing.add(normalized);
+    next.push(source);
+  });
+  return next;
+};
+
 const statusLabel: Record<string, string> = {
   new: 'Новая',
   rewritten: 'Переписана',
@@ -423,6 +437,28 @@ const NewsModulePage: React.FC = () => {
   } | null>(null);
   const [editorBusy, setEditorBusy] = useState(false);
   const [rewriteBusyId, setRewriteBusyId] = useState<string | null>(null);
+  const rssPresetSources = useMemo(() => {
+    const bySlug = new Map(config.allowedCategories.map((c) => [c.slug, c]));
+    const fallbackCategory = config.allowedCategories[0] || { slug: config.defaultCategorySlug || 'general', title: 'Без категории' };
+    return DEFAULT_RSS_SOURCES.map((source) => ({
+      ...source,
+      category: bySlug.get(source.categorySlug) || fallbackCategory,
+    }));
+  }, [config.allowedCategories, config.defaultCategorySlug]);
+
+  const rssPresetIndex = useMemo(() => {
+    return new Set(rssSources.map((source) => normalizeFeedUrl(source.feedUrl)));
+  }, [rssSources]);
+
+  const filteredRssPresets = useMemo(() => {
+    if (rssCategoryFilter === 'all') return rssPresetSources;
+    return rssPresetSources.filter((source) => source.category?.slug === rssCategoryFilter);
+  }, [rssPresetSources, rssCategoryFilter]);
+
+  const allPresetsAdded = useMemo(() => {
+    if (rssPresetSources.length === 0) return true;
+    return rssPresetSources.every((preset) => rssPresetIndex.has(normalizeFeedUrl(preset.feedUrl)));
+  }, [rssPresetIndex, rssPresetSources]);
 
   const loadConfig = async () => {
     try {
@@ -997,6 +1033,35 @@ const NewsModulePage: React.FC = () => {
     ]);
   };
 
+  const addPresetSource = (preset: (typeof rssPresetSources)[number]) => {
+    setRssSources((prev) =>
+      mergeRssSources(prev, [
+        {
+          name: preset.name,
+          feedUrl: preset.feedUrl,
+          enabled: preset.enabled ?? true,
+          defaultTags: preset.defaultTags,
+          category: preset.category,
+        },
+      ])
+    );
+  };
+
+  const addAllPresetSources = () => {
+    setRssSources((prev) =>
+      mergeRssSources(
+        prev,
+        rssPresetSources.map((preset) => ({
+          name: preset.name,
+          feedUrl: preset.feedUrl,
+          enabled: preset.enabled ?? true,
+          defaultTags: preset.defaultTags,
+          category: preset.category,
+        }))
+      )
+    );
+  };
+
   const deleteRssSource = (idx: number) => {
     const next = [...rssSources];
     next.splice(idx, 1);
@@ -1331,6 +1396,53 @@ const NewsModulePage: React.FC = () => {
                     </select>
                     <Button variant="secondary" onClick={addRssSource}>Добавить</Button>
                     <Button onClick={saveRssSources} disabled={isBusy}>Сохранить</Button>
+                  </div>
+                </div>
+
+                <div className="rounded-lg border border-border bg-muted/20 p-4 space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <h3 className="text-sm font-semibold">Встроенные источники</h3>
+                      <p className="text-xs text-muted-foreground">
+                        Быстро добавьте заранее подготовленные ленты СМИ и тематик.
+                      </p>
+                    </div>
+                    <Button
+                      variant="secondary"
+                      onClick={addAllPresetSources}
+                      disabled={isBusy || allPresetsAdded}
+                    >
+                      {allPresetsAdded ? 'Все добавлены' : 'Добавить все'}
+                    </Button>
+                  </div>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    {filteredRssPresets.map((preset) => {
+                      const isAdded = rssPresetIndex.has(normalizeFeedUrl(preset.feedUrl));
+                      return (
+                        <div key={preset.feedUrl} className="rounded-lg border border-border bg-background p-3 flex flex-col gap-2">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <div className="text-sm font-medium text-foreground">{preset.name}</div>
+                              <div className="text-xs text-muted-foreground break-all">{preset.feedUrl}</div>
+                            </div>
+                            <Button
+                              size="sm"
+                              variant={isAdded ? 'secondary' : 'default'}
+                              disabled={isAdded}
+                              onClick={() => addPresetSource(preset)}
+                            >
+                              {isAdded ? 'Добавлено' : 'Добавить'}
+                            </Button>
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            Категория: <span className="text-foreground/80">{preset.category?.title || 'Без категории'}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {filteredRssPresets.length === 0 && (
+                      <div className="text-sm text-muted-foreground">Нет встроенных источников в этой категории.</div>
+                    )}
                   </div>
                 </div>
 
@@ -1681,6 +1793,53 @@ const NewsModulePage: React.FC = () => {
                     <Button variant="secondary" onClick={addRssSource}>Добавить источник</Button>
                     <Button variant="secondary" onClick={runRssPull}>Прогнать сбор сейчас</Button>
                     <Button onClick={saveRssSources} disabled={isBusy}>Сохранить</Button>
+                  </div>
+                </div>
+
+                <div className="rounded-lg border border-border bg-muted/20 p-4 space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <h3 className="text-sm font-semibold">Встроенные источники</h3>
+                      <p className="text-xs text-muted-foreground">
+                        Быстро добавьте заранее подготовленные ленты СМИ и тематик.
+                      </p>
+                    </div>
+                    <Button
+                      variant="secondary"
+                      onClick={addAllPresetSources}
+                      disabled={isBusy || allPresetsAdded}
+                    >
+                      {allPresetsAdded ? 'Все добавлены' : 'Добавить все'}
+                    </Button>
+                  </div>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    {filteredRssPresets.map((preset) => {
+                      const isAdded = rssPresetIndex.has(normalizeFeedUrl(preset.feedUrl));
+                      return (
+                        <div key={preset.feedUrl} className="rounded-lg border border-border bg-background p-3 flex flex-col gap-2">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <div className="text-sm font-medium text-foreground">{preset.name}</div>
+                              <div className="text-xs text-muted-foreground break-all">{preset.feedUrl}</div>
+                            </div>
+                            <Button
+                              size="sm"
+                              variant={isAdded ? 'secondary' : 'default'}
+                              disabled={isAdded}
+                              onClick={() => addPresetSource(preset)}
+                            >
+                              {isAdded ? 'Добавлено' : 'Добавить'}
+                            </Button>
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            Категория: <span className="text-foreground/80">{preset.category?.title || 'Без категории'}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {filteredRssPresets.length === 0 && (
+                      <div className="text-sm text-muted-foreground">Нет встроенных источников в этой категории.</div>
+                    )}
                   </div>
                 </div>
 
