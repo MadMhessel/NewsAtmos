@@ -1,9 +1,34 @@
 [
-  {
-    "name": "Пример источника",
-    "feedUrl": "https://site.ru/rss",
-    "category": {"slug": "city", "title": "Город"},
-    "defaultTags": ["нижний новгород"],
-    "enabled": false
-  }
+    {
+        "name": "Пример источника",
+        "feedUrl": "https:\/\/site.ru\/rss",
+        "category": {
+            "slug": "city",
+            "title": "Город"
+        },
+        "defaultTags": [
+            "нижний новгород"
+        ],
+        "enabled": false
+    },
+    {
+        "name": "rbc",
+        "feedUrl": "https:\/\/rssexport.rbc.ru\/rbcnews\/news\/30\/full.rss",
+        "category": {
+            "slug": "city",
+            "title": "Город"
+        },
+        "defaultTags": [],
+        "enabled": true
+    },
+    {
+        "name": "риа",
+        "feedUrl": "https:\/\/ria.ru\/export\/rss2\/archive\/index.xml",
+        "category": {
+            "slug": "city",
+            "title": "Город"
+        },
+        "defaultTags": [],
+        "enabled": true
+    }
 ]

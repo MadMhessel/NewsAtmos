@@ -24,3 +24,18 @@ dist-ssr
 *.sw?
 
 public/api/data/secrets.php
+
+# Runtime data (не коммитим)
+public/api/news.json
+public/api/settings.json
+public/api/rss_sources.json
+public/api/rss_cron.log
+public/api/backups/
+
+public/api/data/incoming.json
+public/api/data/seen.json
+public/api/data/rss_log.txt
+public/api/data/.write_test
+
+public/uploads/*
+!public/uploads/.gitkeep

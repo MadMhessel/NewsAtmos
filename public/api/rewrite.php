@@ -6,7 +6,7 @@ header('Pragma: no-cache');
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
   header('Access-Control-Allow-Origin: *');
   header('Access-Control-Allow-Headers: Content-Type, X-Admin-Token');
-  header('Access-Control-Allow-Methods: POST, OPTIONS');
+  header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
   exit;
 }
 
@@ -45,34 +45,36 @@ function fetch_url($url) {
   return ['ok' => true, 'body' => $body];
 }
 
+/**
+ * ВАЖНО:
+ * Этот payload соответствует FastAPI-сервису (neutral-news-ai-editor / neutral-news-rewrite-api v2),
+ * который ожидает поля source_text (обязательно) и прочие source_*.
+ * Не добавляйте лишние ключи — чтобы не ловить 422.
+ */
 function prepare_rewrite_payload($item, $config, $text) {
   return [
-    'title' => isset($item['raw']['title']) ? $item['raw']['title'] : '',
-    'summary' => isset($item['raw']['summary']) ? $item['raw']['summary'] : '',
-    'text' => $text,
-    'source' => [
-      'name' => isset($item['source']['name']) ? $item['source']['name'] : '',
-      'url' => isset($item['source']['itemUrl']) ? $item['source']['itemUrl'] : '',
-      'publishedAt' => isset($item['publishedAt']) ? $item['publishedAt'] : '',
-    ],
-    'categoryHint' => isset($item['category']) ? $item['category'] : ($config['defaultCategorySlug'] ?? ''),
-    'regionHint' => $config['rewriteRegionHint'] ?? '',
-    'temperature' => $config['rewriteTemperature'] ?? 0.2,
-    'appendSourceBlock' => !empty($config['appendSourceBlock']),
-    'allowQuotesOnlyIfPresent' => !empty($config['allowQuotesOnlyIfPresent']),
-    'includeSourceBlock' => !empty($config['appendSourceBlock']),
-    'quotesPolicy' => !empty($config['allowQuotesOnlyIfPresent']) ? 'source_only' : 'allow',
+    'source_title' => $item['raw']['title'] ?? '',
+    'source_text'  => $text, // ОБЯЗАТЕЛЬНО
+    'source_url'   => $item['source']['itemUrl'] ?? '',
+    'source_site'  => $item['source']['name'] ?? '',
+    'source_published_at' => $item['publishedAt'] ?? '',
+    'source_image' => $item['raw']['image'] ?? ($item['raw']['heroImage'] ?? ''),
+    'region_hint'  => $config['rewriteRegionHint'] ?? '',
   ];
 }
 
 function get_rewrite_secrets(): array {
   $secrets = load_secrets();
+
   $serviceUrl = getenv('REWRITE_SERVICE_URL');
   if (!$serviceUrl && isset($secrets['REWRITE_SERVICE_URL'])) $serviceUrl = $secrets['REWRITE_SERVICE_URL'];
+
   $secret = getenv('HMAC_SECRET');
   if (!$secret && isset($secrets['HMAC_SECRET'])) $secret = $secrets['HMAC_SECRET'];
+
   $internalToken = getenv('INTERNAL_TOOL_TOKEN');
   if (!$internalToken && isset($secrets['INTERNAL_TOOL_TOKEN'])) $internalToken = $secrets['INTERNAL_TOOL_TOKEN'];
+
   return [
     'serviceUrl' => $serviceUrl,
     'secret' => $secret,
@@ -80,12 +82,43 @@ function get_rewrite_secrets(): array {
   ];
 }
 
-function build_health_url(string $serviceUrl): string {
-  $base = rtrim($serviceUrl, '/');
-  if (substr($base, -8) === '/rewrite') {
-    return substr($base, 0, -8) . '/healthz';
+function normalize_service_base(string $serviceUrl): string {
+  $base = rtrim(trim($serviceUrl), '/');
+
+  // если по ошибке сохранили полный путь /rewrite — обрежем до базы
+  if (substr($base, -7) === '/rewrite') {
+    $base = substr($base, 0, -7);
+    $base = rtrim($base, '/');
   }
-  return $base . '/healthz';
+
+  // если по ошибке сохранили /healthz — тоже обрежем
+  if (substr($base, -8) === '/healthz') {
+    $base = substr($base, 0, -8);
+    $base = rtrim($base, '/');
+  }
+
+  return $base;
+}
+
+function build_rewrite_url(string $serviceUrl): string {
+  return normalize_service_base($serviceUrl) . '/rewrite';
+}
+
+function build_health_url(string $serviceUrl): string {
+  return normalize_service_base($serviceUrl) . '/healthz';
+}
+
+function curl_json_get(string $url, int $timeoutSec, array $headers = []) {
+  $ch = curl_init($url);
+  curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+  curl_setopt($ch, CURLOPT_TIMEOUT, max(5, $timeoutSec));
+  if (!empty($headers)) curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+  $result = curl_exec($ch);
+  $err = curl_error($ch);
+  $status = curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+  curl_close($ch);
+
+  return [$result, $err, $status];
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
@@ -100,6 +133,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
   $config = read_json($configPath, []);
   $timeout = isset($config['rewriteTimeoutSec']) ? (int)$config['rewriteTimeoutSec'] : 25;
+
   $secrets = get_rewrite_secrets();
   if (empty($secrets['serviceUrl']) || empty($secrets['secret'])) {
     http_response_code(500);
@@ -107,22 +141,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     exit;
   }
 
+  // --- HEALTH CHECK ---
   if ($action === 'health') {
-    $healthUrl = build_health_url($secrets['serviceUrl']);
-    $ch = curl_init($healthUrl);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_TIMEOUT, max(5, $timeout));
-    $headers = [];
+    $baseHeaders = [];
     if (!empty($secrets['internalToken'])) {
-      $headers[] = 'X-Internal-Token: ' . $secrets['internalToken'];
+      $baseHeaders[] = 'X-Internal-Token: ' . $secrets['internalToken'];
     }
-    if (!empty($headers)) {
-      curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+
+    // 1) основной healthz
+    $healthUrl = build_health_url($secrets['serviceUrl']);
+    [$result, $err, $status] = curl_json_get($healthUrl, $timeout, $baseHeaders);
+
+    // 2) запасной вариант: GET /
+    if ($result === false || $status >= 400) {
+      $fallbackUrl = normalize_service_base($secrets['serviceUrl']) . '/';
+      [$result2, $err2, $status2] = curl_json_get($fallbackUrl, $timeout, $baseHeaders);
+      if ($result2 !== false && $status2 < 400) {
+        $result = $result2; $err = $err2; $status = $status2;
+      }
     }
-    $result = curl_exec($ch);
-    $err = curl_error($ch);
-    $status = curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
-    curl_close($ch);
 
     if ($result === false || $status >= 400) {
       http_response_code(502);
@@ -139,6 +176,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     exit;
   }
 
+  // --- TEST REWRITE ---
   $sampleItem = [
     'raw' => [
       'title' => 'Тестовый заголовок',
@@ -151,8 +189,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     'category' => $config['defaultCategorySlug'] ?? 'city',
     'publishedAt' => now_utc_iso(),
   ];
+
   $payloadBody = prepare_rewrite_payload($sampleItem, $config, 'Это тестовый текст для проверки работы сервиса реврайта.');
   $payloadJson = json_encode($payloadBody, JSON_UNESCAPED_UNICODE);
+
   $timestamp = (string)time();
   $signature = hash_hmac('sha256', $timestamp . '.' . $payloadJson, $secrets['secret']);
 
@@ -165,12 +205,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $headers[] = 'X-Internal-Token: ' . $secrets['internalToken'];
   }
 
-  $ch = curl_init($secrets['serviceUrl']);
+  $rewriteUrl = build_rewrite_url($secrets['serviceUrl']);
+  $ch = curl_init($rewriteUrl);
   curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
   curl_setopt($ch, CURLOPT_POST, true);
   curl_setopt($ch, CURLOPT_TIMEOUT, max(5, $timeout));
   curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
   curl_setopt($ch, CURLOPT_POSTFIELDS, $payloadJson);
+
   $result = curl_exec($ch);
   $err = curl_error($ch);
   $status = curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
@@ -274,6 +316,7 @@ if ($rewriteMaxChars > 0 && mb_strlen($clean, 'UTF-8') > $rewriteMaxChars) {
 $secrets = get_rewrite_secrets();
 $serviceUrl = $secrets['serviceUrl'];
 $secret = $secrets['secret'];
+
 if (!$serviceUrl || !$secret) {
   $items[$foundIndex]['status'] = 'error';
   $items[$foundIndex]['rewriteError'] = 'Не настроены переменные окружения для реврайта.';
@@ -289,10 +332,13 @@ $timestamp = (string)time();
 $signature = hash_hmac('sha256', $timestamp . '.' . $payloadJson, $secret);
 
 $timeout = isset($config['rewriteTimeoutSec']) ? (int)$config['rewriteTimeoutSec'] : 25;
-$ch = curl_init($serviceUrl);
+
+$rewriteUrl = build_rewrite_url($serviceUrl);
+$ch = curl_init($rewriteUrl);
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 curl_setopt($ch, CURLOPT_POST, true);
 curl_setopt($ch, CURLOPT_TIMEOUT, max(5, $timeout));
+
 $headers = [
   'Content-Type: application/json',
   'X-Timestamp: ' . $timestamp,
@@ -301,8 +347,10 @@ $headers = [
 if (!empty($secrets['internalToken'])) {
   $headers[] = 'X-Internal-Token: ' . $secrets['internalToken'];
 }
+
 curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
 curl_setopt($ch, CURLOPT_POSTFIELDS, $payloadJson);
+
 $result = curl_exec($ch);
 $err = curl_error($ch);
 $status = curl_getinfo($ch, CURLINFO_RESPONSE_CODE);

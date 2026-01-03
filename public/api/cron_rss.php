@@ -125,7 +125,15 @@ foreach ($sources as $source) {
         'text' => isset($item['text']) ? $item['text'] : '',
       ],
       'image' => isset($item['image']) ? $item['image'] : '',
-      'category' => isset($source['category']) ? $source['category'] : null,
+      'category' => (
+  isset($source['category'])
+    ? (
+        is_array($source['category'])
+          ? ($source['category']['slug'] ?? null)
+          : (is_string($source['category']) ? (trim($source['category']) !== '' ? trim($source['category']) : null) : null)
+      )
+    : null
+),
       'tags' => isset($source['defaultTags']) && is_array($source['defaultTags']) ? $source['defaultTags'] : [],
       'status' => 'new',
       'publishedNewsId' => null,
