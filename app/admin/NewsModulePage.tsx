@@ -381,6 +381,7 @@ const NewsModulePage: React.FC = () => {
   const [config, setConfig] = useState<Config>(defaultConfig);
   const [rssSources, setRssSources] = useState<RssSource[]>([]);
   const [rssCategoryFilter, setRssCategoryFilter] = useState<string>('all');
+  const [incomingCategoryFilter, setIncomingCategoryFilter] = useState<string>('all');
   const [aiAdminToken, setAiAdminToken] = useState(() => {
     try {
       return typeof window !== 'undefined' ? localStorage.getItem('admin_token') || '' : '';
@@ -544,14 +545,39 @@ const NewsModulePage: React.FC = () => {
         const matchesSearch = title.toLowerCase().includes(incomingSearch.toLowerCase());
         const status = item.status || 'new';
         const matchesStatus = !incomingStatus || status === incomingStatus;
-        return matchesSearch && matchesStatus;
+        const category = item.category || '';
+        const matchesCategory = incomingCategoryFilter === 'all' || category === incomingCategoryFilter;
+        return matchesSearch && matchesStatus && matchesCategory;
       })
       .sort((a, b) => {
         const da = new Date(a.publishedAt || '').getTime();
         const db = new Date(b.publishedAt || '').getTime();
         return db - da;
       });
-  }, [incomingItems, incomingSearch, incomingStatus]);
+  }, [incomingItems, incomingSearch, incomingStatus, incomingCategoryFilter]);
+
+  const incomingCategoryOptions = useMemo(() => {
+    const options = config.allowedCategories.map((category) => ({
+      slug: category.slug,
+      title: category.title,
+    }));
+    const known = new Set(options.map((option) => option.slug));
+    rssSources.forEach((source) => {
+      if (source.category?.slug && !known.has(source.category.slug)) {
+        known.add(source.category.slug);
+        options.push({ slug: source.category.slug, title: source.category.title });
+      }
+    });
+    return options;
+  }, [config.allowedCategories, rssSources]);
+
+  const incomingCategoryLabels = useMemo(() => {
+    const map = new Map<string, string>();
+    incomingCategoryOptions.forEach((option) => {
+      map.set(option.slug, option.title);
+    });
+    return map;
+  }, [incomingCategoryOptions]);
 
   const filteredNews = useMemo(() => {
     return [...newsItems]
@@ -1158,6 +1184,16 @@ const NewsModulePage: React.FC = () => {
                   <option value="error">Ошибка</option>
                   <option value="published">Опубликована</option>
                 </select>
+                <select
+                  className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+                  value={incomingCategoryFilter}
+                  onChange={(e) => setIncomingCategoryFilter(e.target.value)}
+                >
+                  <option value="all">Все темы</option>
+                  {incomingCategoryOptions.map((category) => (
+                    <option key={category.slug} value={category.slug}>{category.title}</option>
+                  ))}
+                </select>
                 <Button variant="secondary" onClick={refreshIncomingFromRss} disabled={isBusy}>
                   <RefreshCw className="w-4 h-4 mr-2" /> Обновить
                 </Button>
@@ -1189,9 +1225,11 @@ const NewsModulePage: React.FC = () => {
                               <div className="text-xs text-muted-foreground">{item.source?.name || '—'}</div>
                             </td>
                             <td className="p-3">
-                              <div className="font-medium text-foreground line-clamp-2">{item.raw?.title || 'Без названия'}</div>
+                          <div className="font-medium text-foreground line-clamp-2">{item.raw?.title || 'Без названия'}</div>
+                        </td>
+                            <td className="p-3 text-muted-foreground">
+                              {item.category ? (incomingCategoryLabels.get(item.category) || item.category) : '—'}
                             </td>
-                            <td className="p-3 text-muted-foreground">{item.category || '—'}</td>
                             <td className="p-3">
                               <span className={[
                                 'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs',
