@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Article, ContentBlock } from '@/lib/types';
+import { Article, ArticleStatus, ContentBlock } from '@/lib/types';
 import { newsService } from '@/lib/newsService';
 import { formatDateShort } from '@/lib/utils';
 import { Check, Copy, ExternalLink, Loader2, Plus, RefreshCw, Search, Trash2, Wand2, X } from 'lucide-react';
@@ -165,6 +165,30 @@ const blockTypeLabels: Record<ContentBlock['type'], string> = {
   callout: 'Врезка',
 };
 
+const STATUS_OPTIONS: { value: ArticleStatus; label: string }[] = [
+  { value: 'draft', label: 'Черновик' },
+  { value: 'review', label: 'На проверке' },
+  { value: 'scheduled', label: 'Запланировано' },
+  { value: 'published', label: 'Опубликовано' },
+  { value: 'archived', label: 'Архив' },
+  { value: 'trash', label: 'Корзина' },
+];
+
+const toLocalInputValue = (iso?: string) => {
+  if (!iso) return '';
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '';
+  const offset = date.getTimezoneOffset() * 60000;
+  return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+};
+
+const fromLocalInputValue = (value: string) => {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toISOString();
+};
+
 const NewsModulePage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'incoming' | 'drafts' | 'published' | 'settings' | 'ai_settings'>('incoming');
   const [incomingItems, setIncomingItems] = useState<IncomingItem[]>([]);
@@ -207,6 +231,21 @@ const NewsModulePage: React.FC = () => {
     tags: string[];
     content: ContentBlock[];
     heroImage: string;
+    status: ArticleStatus;
+    scheduledAt: string;
+    slug: string;
+    authorName: string;
+    authorRole: string;
+    sourceName: string;
+    sourceUrl: string;
+    locationCity: string;
+    locationDistrict: string;
+    locationAddress: string;
+    isVerified: boolean;
+    isFeatured: boolean;
+    isBreaking: boolean;
+    pinnedNowReading: boolean;
+    pinnedNowReadingRank: number;
     flags: string[];
     confidence: number | null;
   } | null>(null);
@@ -317,13 +356,29 @@ const NewsModulePage: React.FC = () => {
   const openIncomingEditor = async (item: IncomingItem) => {
     setEditor({ mode: 'incoming', item });
     const rewrite = item.rewrite || {};
+    const title = rewrite.title || item.raw?.title || '';
     setEditorDraft({
-      title: rewrite.title || item.raw?.title || '',
+      title,
       excerpt: rewrite.excerpt || item.raw?.summary || '',
       category: rewrite.category || item.category || config.defaultCategorySlug,
       tags: ensureStringArray(rewrite.tags),
       content: normalizeBlocks(rewrite.content),
       heroImage: rewrite.heroImage || item.image || '',
+      status: 'draft',
+      scheduledAt: '',
+      slug: slugify(title),
+      authorName: config.defaultAuthorName,
+      authorRole: config.defaultAuthorRole,
+      sourceName: item.source?.name || '',
+      sourceUrl: item.source?.itemUrl || '',
+      locationCity: '',
+      locationDistrict: '',
+      locationAddress: '',
+      isVerified: false,
+      isFeatured: false,
+      isBreaking: false,
+      pinnedNowReading: false,
+      pinnedNowReadingRank: 0,
       flags: ensureStringArray(rewrite.flags),
       confidence: typeof rewrite.confidence === 'number' ? rewrite.confidence : null,
     });
@@ -338,6 +393,21 @@ const NewsModulePage: React.FC = () => {
       tags: ensureStringArray(item.tags),
       content: normalizeBlocks(item.content),
       heroImage: item.heroImage || '',
+      status: item.status || 'draft',
+      scheduledAt: item.scheduledAt || '',
+      slug: item.slug || '',
+      authorName: item.author?.name || config.defaultAuthorName,
+      authorRole: item.author?.role || config.defaultAuthorRole,
+      sourceName: item.source?.name || '',
+      sourceUrl: item.source?.url || '',
+      locationCity: item.location?.city || '',
+      locationDistrict: item.location?.district || '',
+      locationAddress: item.location?.address || '',
+      isVerified: !!item.isVerified,
+      isFeatured: !!item.isFeatured,
+      isBreaking: !!item.isBreaking,
+      pinnedNowReading: !!item.pinnedNowReading,
+      pinnedNowReadingRank: item.pinnedNowReadingRank ?? 0,
       flags: [],
       confidence: null,
     });
@@ -450,7 +520,7 @@ const NewsModulePage: React.FC = () => {
     const draft = editorDraft as NonNullable<typeof editorDraft>;
     const now = new Date().toISOString();
     const category = config.allowedCategories.find((c) => c.slug === draft.category) || config.allowedCategories[0];
-    const slug = slugify(draft.title) || base?.slug || `news-${Date.now()}`;
+    const slug = draft.slug || slugify(draft.title) || base?.slug || `news-${Date.now()}`;
     return {
       id: base?.id || Math.random().toString(36).slice(2, 10),
       slug,
@@ -459,31 +529,42 @@ const NewsModulePage: React.FC = () => {
       content: draft.content,
       category,
       tags: draft.tags,
-      author: { name: config.defaultAuthorName, role: config.defaultAuthorRole },
+      author: { name: draft.authorName || config.defaultAuthorName, role: draft.authorRole || config.defaultAuthorRole },
       publishedAt: base?.publishedAt || now,
       updatedAt: now,
       createdAt: base?.createdAt || now,
       heroImage: draft.heroImage,
       readingTime: base?.readingTime || 3,
-      status: base?.status || 'draft',
+      status: draft.status || base?.status || 'draft',
+      scheduledAt: draft.status === 'scheduled' ? (draft.scheduledAt || base?.scheduledAt) : undefined,
       views: base?.views || 0,
-      source: base?.source,
-      isBreaking: base?.isBreaking,
-      isFeatured: base?.isFeatured,
-      pinnedNowReading: base?.pinnedNowReading,
-      pinnedNowReadingRank: base?.pinnedNowReadingRank,
+      source: {
+        name: draft.sourceName || base?.source?.name,
+        url: draft.sourceUrl || base?.source?.url,
+      },
+      location: {
+        city: draft.locationCity || base?.location?.city,
+        district: draft.locationDistrict || base?.location?.district,
+        address: draft.locationAddress || base?.location?.address,
+      },
+      isVerified: draft.isVerified,
+      isBreaking: draft.isBreaking,
+      isFeatured: draft.isFeatured,
+      pinnedNowReading: draft.pinnedNowReading,
+      pinnedNowReadingRank: draft.pinnedNowReading ? draft.pinnedNowReadingRank : undefined,
       sourceIncomingId: base?.sourceIncomingId,
     } as Article;
   };
 
-  const saveDraftFromIncoming = async (publish: boolean) => {
+  const saveDraftFromIncoming = async (publish?: boolean) => {
     if (!editorDraft || !editor || editor.mode !== 'incoming') return;
     const incomingItem = editor.item as IncomingItem;
     const base = buildArticleFromDraft({ sourceIncomingId: incomingItem.id } as Article);
     const article = {
       ...base,
-      status: publish ? 'published' : 'draft',
+      status: publish === true ? 'published' : publish === false ? 'draft' : base.status,
       publishedAt: publish ? new Date().toISOString() : base.publishedAt,
+      scheduledAt: base.status === 'scheduled' ? base.scheduledAt : undefined,
       sourceIncomingId: incomingItem.id,
     } as Article;
 
@@ -502,9 +583,11 @@ const NewsModulePage: React.FC = () => {
     if (publishToggle === true) {
       updated.status = 'published';
       updated.publishedAt = new Date().toISOString();
+      updated.scheduledAt = undefined;
     }
     if (publishToggle === false) {
       updated.status = 'draft';
+      updated.scheduledAt = undefined;
     }
 
     const next = newsItems.map((n) => (n.id === updated.id ? updated : n));
@@ -1557,6 +1640,18 @@ const NewsModulePage: React.FC = () => {
                   </div>
                   <div className="grid gap-3 md:grid-cols-2">
                     <div>
+                      <label className="text-sm font-medium">Статус</label>
+                      <select
+                        className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                        value={editorDraft.status}
+                        onChange={(e) => setEditorDraft({ ...editorDraft, status: e.target.value as ArticleStatus })}
+                      >
+                        {STATUS_OPTIONS.map((option) => (
+                          <option key={option.value} value={option.value}>{option.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
                       <label className="text-sm font-medium">Категория</label>
                       <select
                         className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
@@ -1568,9 +1663,84 @@ const NewsModulePage: React.FC = () => {
                         ))}
                       </select>
                     </div>
+                  </div>
+                  {editorDraft.status === 'scheduled' && (
                     <div>
-                      <label className="text-sm font-medium">Обложка</label>
-                      <Input value={editorDraft.heroImage} onChange={(e) => setEditorDraft({ ...editorDraft, heroImage: e.target.value })} />
+                      <label className="text-sm font-medium">Публикация</label>
+                      <Input
+                        type="datetime-local"
+                        value={toLocalInputValue(editorDraft.scheduledAt)}
+                        onChange={(e) => setEditorDraft({ ...editorDraft, scheduledAt: fromLocalInputValue(e.target.value) })}
+                      />
+                    </div>
+                  )}
+                  <div>
+                    <label className="text-sm font-medium">Обложка</label>
+                    <Input value={editorDraft.heroImage} onChange={(e) => setEditorDraft({ ...editorDraft, heroImage: e.target.value })} />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Промо</label>
+                    <div className="flex flex-col gap-2">
+                      <label className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={editorDraft.isFeatured}
+                          onChange={(e) => setEditorDraft({ ...editorDraft, isFeatured: e.target.checked })}
+                        />
+                        Главная новость
+                      </label>
+                      <label className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={editorDraft.isBreaking}
+                          onChange={(e) => setEditorDraft({ ...editorDraft, isBreaking: e.target.checked })}
+                        />
+                        Срочная молния
+                      </label>
+                      <label className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={editorDraft.pinnedNowReading}
+                          onChange={(e) => setEditorDraft({ ...editorDraft, pinnedNowReading: e.target.checked })}
+                        />
+                        Закрепить в «Сейчас читают»
+                      </label>
+                      {editorDraft.pinnedNowReading && (
+                        <div className="pl-6 flex items-center gap-2 text-xs text-muted-foreground">
+                          <span>Приоритет</span>
+                          <input
+                            type="number"
+                            min={0}
+                            max={99}
+                            value={editorDraft.pinnedNowReadingRank}
+                            onChange={(e) => setEditorDraft({ ...editorDraft, pinnedNowReadingRank: Number(e.target.value) || 0 })}
+                            className="h-9 w-24 rounded-md border border-border bg-background px-3 text-sm text-foreground"
+                          />
+                          <span>меньше = выше</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-medium">URL (слаг)</label>
+                    <Input value={editorDraft.slug} onChange={(e) => setEditorDraft({ ...editorDraft, slug: e.target.value })} />
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-medium">Автор</label>
+                    <Input value={editorDraft.authorName} onChange={(e) => setEditorDraft({ ...editorDraft, authorName: e.target.value })} />
+                  </div>
+
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <div>
+                      <label className="text-sm font-medium">Источник</label>
+                      <Input value={editorDraft.sourceName} onChange={(e) => setEditorDraft({ ...editorDraft, sourceName: e.target.value })} />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Ссылка на источник</label>
+                      <Input value={editorDraft.sourceUrl} onChange={(e) => setEditorDraft({ ...editorDraft, sourceUrl: e.target.value })} />
                     </div>
                   </div>
 
@@ -1598,6 +1768,34 @@ const NewsModulePage: React.FC = () => {
                       />
                     </div>
                   </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Локация</label>
+                    <Input
+                      value={editorDraft.locationCity}
+                      onChange={(e) => setEditorDraft({ ...editorDraft, locationCity: e.target.value })}
+                      placeholder="Город"
+                    />
+                    <Input
+                      value={editorDraft.locationDistrict}
+                      onChange={(e) => setEditorDraft({ ...editorDraft, locationDistrict: e.target.value })}
+                      placeholder="Район"
+                    />
+                    <Input
+                      value={editorDraft.locationAddress}
+                      onChange={(e) => setEditorDraft({ ...editorDraft, locationAddress: e.target.value })}
+                      placeholder="Адрес"
+                    />
+                  </div>
+
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={editorDraft.isVerified}
+                      onChange={(e) => setEditorDraft({ ...editorDraft, isVerified: e.target.checked })}
+                    />
+                    Проверено
+                  </label>
 
                   {(editorDraft.flags.length > 0 || editorDraft.confidence !== null) && (
                     <div className="rounded-lg border border-border p-3 text-xs text-muted-foreground">
@@ -1686,8 +1884,8 @@ const NewsModulePage: React.FC = () => {
                 <div className="flex flex-wrap gap-2 pt-4 border-t border-border">
                   {editor.mode === 'incoming' ? (
                     <>
-                      <Button onClick={() => saveDraftFromIncoming(false)} disabled={editorBusy}>
-                        <Check className="w-4 h-4 mr-2" /> Сохранить как черновик
+                      <Button onClick={() => saveDraftFromIncoming()} disabled={editorBusy}>
+                        <Check className="w-4 h-4 mr-2" /> Сохранить
                       </Button>
                       <Button variant="secondary" onClick={() => saveDraftFromIncoming(true)} disabled={editorBusy}>
                         Опубликовать
