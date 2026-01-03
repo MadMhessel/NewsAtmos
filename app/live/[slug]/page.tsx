@@ -83,9 +83,13 @@ export default function LiveStreamPage() {
   const visibleUpdates = sortedUpdates.slice(0, visibleCount);
   const hasMore = sortedUpdates.length > visibleCount;
 
+  if (!stream) {
+    return notFound();
+  }
+
   const isPublic = stream.status === 'published' || stream.status === 'finished';
 
-  if (!stream || !isPublic) {
+  if (!isPublic) {
     return notFound();
   }
 
