@@ -45,7 +45,7 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       {/* Sidebar */}
       <aside className="w-64 bg-card border-r border-border hidden md:flex flex-col fixed inset-y-0 z-50">
         <div className="h-16 flex items-center px-6 border-b border-border">
-            <span className="font-bold text-xl tracking-tight">Admin<span className="text-primary">Panel</span></span>
+            <span className="font-bold text-xl tracking-tight">Админ<span className="text-primary">панель</span></span>
         </div>
         
         <nav className="flex-1 p-4 space-y-2">

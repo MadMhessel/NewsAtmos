@@ -105,6 +105,11 @@ export const newsService = {
     isInitialized = true;
   },
 
+  setArticles: (articles: Article[]) => {
+    articlesCache = normalizeArticles(articles);
+    isInitialized = true;
+  },
+
   // Синхронизация: отправка данных на сервер
   save: async () => {
     // 1) LocalStorage — только как запасной вариант. Ошибки квоты не должны
