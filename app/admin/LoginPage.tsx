@@ -29,7 +29,7 @@ export default function LoginPage({ redirectTo = '/admin', onSuccess }: { redire
       const hash = await sha256(password);
       if (hash === ADMIN_PASSWORD_SHA256) {
         sessionStorage.setItem('admin_auth', 'true');
-        sessionStorage.setItem('admin_token', hash);
+        sessionStorage.setItem('admin_token', password);
         onSuccess?.();
         navigate(redirectTo, { replace: true });
         return;

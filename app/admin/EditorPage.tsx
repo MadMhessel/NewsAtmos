@@ -24,7 +24,7 @@ import {
     Maximize2
 } from 'lucide-react';
 import Link from '@/lib/next-shim';
-import { cn } from '@/lib/utils';
+import { cn, slugify } from '@/lib/utils';
 import { ArticleContent } from '@/components/news/ArticleContent';
 import { ArticleCard } from '@/components/news/ArticleCard';
 
@@ -503,10 +503,7 @@ export default function EditorPage() {
 
     useEffect(() => {
         if (!isSlugManuallyEdited && !isEditing) {
-            const generated = title.toLowerCase()
-                .replace(/[^a-z0-9а-яё\s]/g, '')
-                .replace(/\s+/g, '-');
-            setSlug(generated);
+            setSlug(slugify(title));
         }
     }, [title, isSlugManuallyEdited, isEditing]);
 
@@ -630,7 +627,7 @@ export default function EditorPage() {
 
         setSaveState('saving');
 
-        const finalSlug = slug || `article-${Date.now()}`;
+        const finalSlug = slugify(slug || title) || `article-${Date.now()}`;
         const existingArticle = id ? newsService.getById(id) : undefined;
         const nowIso = new Date().toISOString();
         const scheduledIso = scheduledAt || '';
@@ -1089,9 +1086,9 @@ export default function EditorPage() {
                             <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">URL (слаг)</label>
                             <input 
                                 className="w-full bg-transparent border-b border-border py-1 text-sm font-mono text-muted-foreground focus:text-foreground focus:border-accent outline-none transition-colors"
-                                value={slug}
-                                onChange={e => {
-                                    setSlug(e.target.value);
+                                    value={slug}
+                                    onChange={e => {
+                                    setSlug(slugify(e.target.value));
                                     setIsSlugManuallyEdited(true);
                                 }}
                                 placeholder="автоматически"
