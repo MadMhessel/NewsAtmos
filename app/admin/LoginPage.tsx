@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Lock } from 'lucide-react';
 
 const ADMIN_PASSWORD_SHA256 = "da03c698dbef2649ddf0af56552483c31de6954d03d065da949b6a5c6d285b6b";
+const AUTH_CHECK_URL = "/api/secrets.php";
 
 async function sha256(text: string) {
   const data = new TextEncoder().encode(text);
@@ -26,6 +27,25 @@ export default function LoginPage({ redirectTo = '/admin', onSuccess }: { redire
     setIsBusy(true);
 
     try {
+      try {
+        const response = await fetch(AUTH_CHECK_URL, {
+          headers: { 'X-Admin-Token': password }
+        });
+        if (response.ok) {
+          sessionStorage.setItem('admin_auth', 'true');
+          sessionStorage.setItem('admin_token', password);
+          onSuccess?.();
+          navigate(redirectTo, { replace: true });
+          return;
+        }
+        if (response.status === 401 || response.status === 403) {
+          setError('Неверный пароль');
+          return;
+        }
+      } catch {
+        // ignore network errors, fallback to local check
+      }
+
       const hash = await sha256(password);
       if (hash === ADMIN_PASSWORD_SHA256) {
         sessionStorage.setItem('admin_auth', 'true');
