@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Article, ContentBlock } from '@/lib/types';
+import { newsService } from '@/lib/newsService';
 import { formatDateShort } from '@/lib/utils';
 import { Check, Copy, ExternalLink, Loader2, Plus, RefreshCw, Search, Trash2, Wand2, X } from 'lucide-react';
 
@@ -155,6 +156,15 @@ const statusClasses: Record<string, string> = {
   published: 'border-purple-500/40 text-purple-700 dark:text-purple-300',
 };
 
+const blockTypeLabels: Record<ContentBlock['type'], string> = {
+  paragraph: 'Абзац',
+  heading: 'Заголовок',
+  list: 'Список',
+  quote: 'Цитата',
+  divider: 'Разделитель',
+  callout: 'Врезка',
+};
+
 const NewsModulePage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'incoming' | 'drafts' | 'published' | 'settings' | 'ai_settings'>('incoming');
   const [incomingItems, setIncomingItems] = useState<IncomingItem[]>([]);
@@ -230,7 +240,9 @@ const NewsModulePage: React.FC = () => {
       const res = await fetch(API_NEWS);
       if (!res.ok) throw new Error('news');
       const data = await res.json();
-      setNewsItems(Array.isArray(data) ? data : []);
+      const next = Array.isArray(data) ? data : [];
+      setNewsItems(next);
+      newsService.setArticles(next);
     } catch {
       setNewsItems([]);
     }
@@ -1313,7 +1325,7 @@ const NewsModulePage: React.FC = () => {
                   {config.allowedCategories.map((cat, idx) => (
                     <div key={`${cat.slug}-${idx}`} className="grid gap-3 md:grid-cols-[1fr_1fr_auto] items-center">
                       <Input
-                        placeholder="slug"
+                        placeholder="Слаг"
                         value={cat.slug}
                         onChange={(e) => updateCategory(idx, { slug: slugify(e.target.value) })}
                       />
@@ -1345,11 +1357,11 @@ const NewsModulePage: React.FC = () => {
                 </div>
                 <div className="grid gap-4 md:grid-cols-2">
                   <div>
-                    <label className="text-sm font-medium">incomingMaxItems</label>
+                    <label className="text-sm font-medium">Лимит входящих (incomingMaxItems)</label>
                     <Input type="number" value={config.incomingMaxItems} onChange={(e) => setConfig({ ...config, incomingMaxItems: Number(e.target.value) })} />
                   </div>
                   <div>
-                    <label className="text-sm font-medium">maxNewItemsPerRun</label>
+                    <label className="text-sm font-medium">Новых за запуск (maxNewItemsPerRun)</label>
                     <Input
                       type="number"
                       value={config.maxNewItemsPerRun}
@@ -1360,15 +1372,15 @@ const NewsModulePage: React.FC = () => {
                     />
                   </div>
                   <div>
-                    <label className="text-sm font-medium">dedupWindowDays</label>
+                    <label className="text-sm font-medium">Окно дедупликации, дни (dedupWindowDays)</label>
                     <Input type="number" value={config.dedupWindowDays} onChange={(e) => setConfig({ ...config, dedupWindowDays: Number(e.target.value) })} />
                   </div>
                   <div>
-                    <label className="text-sm font-medium">fetchTimeoutSec</label>
+                    <label className="text-sm font-medium">Таймаут запроса, сек. (fetchTimeoutSec)</label>
                     <Input type="number" value={config.fetchTimeoutSec} onChange={(e) => setConfig({ ...config, fetchTimeoutSec: Number(e.target.value) })} />
                   </div>
                   <div className="md:col-span-2">
-                    <label className="text-sm font-medium">userAgent</label>
+                    <label className="text-sm font-medium">User-Agent (userAgent)</label>
                     <Input value={config.userAgent} onChange={(e) => setConfig({ ...config, userAgent: e.target.value })} />
                   </div>
                 </div>
@@ -1557,7 +1569,7 @@ const NewsModulePage: React.FC = () => {
                       </select>
                     </div>
                     <div>
-                      <label className="text-sm font-medium">Hero image</label>
+                      <label className="text-sm font-medium">Обложка</label>
                       <Input value={editorDraft.heroImage} onChange={(e) => setEditorDraft({ ...editorDraft, heroImage: e.target.value })} />
                     </div>
                   </div>
@@ -1601,7 +1613,7 @@ const NewsModulePage: React.FC = () => {
                     <div className="flex flex-wrap gap-2">
                       {(['paragraph', 'heading', 'list', 'quote'] as ContentBlock['type'][]).map((type) => (
                         <Button key={type} size="sm" variant="secondary" onClick={() => addBlock(type)}>
-                          <Plus className="w-3 h-3 mr-1" /> {type}
+                          <Plus className="w-3 h-3 mr-1" /> {blockTypeLabels[type]}
                         </Button>
                       ))}
                     </div>
@@ -1611,7 +1623,7 @@ const NewsModulePage: React.FC = () => {
                     {editorDraft.content.map((block, idx) => (
                       <div key={idx} className="rounded-lg border border-border bg-background p-3 space-y-2">
                         <div className="flex items-center justify-between text-xs text-muted-foreground">
-                          <span>{block.type}</span>
+                          <span>{blockTypeLabels[block.type]}</span>
                           <div className="flex gap-2">
                             <button type="button" onClick={() => moveBlock(idx, -1)} className="hover:text-foreground">↑</button>
                             <button type="button" onClick={() => moveBlock(idx, 1)} className="hover:text-foreground">↓</button>

@@ -565,7 +565,7 @@ export default function EditorPage() {
             slug,
             excerpt,
             category: categories.find(c => c.slug === categorySlug) || categories[0],
-            author: { name: authorName, role: 'Editor' },
+            author: { name: authorName, role: 'Редактор' },
             heroImage: safeHeroImage,
             heroImageSquare: safeHeroSquare,
             heroFocal,
@@ -647,7 +647,7 @@ export default function EditorPage() {
             content,
             category: categories.find(c => c.slug === categorySlug) || categories[0],
             tags,
-            author: { name: authorName, role: 'Editor' },
+            author: { name: authorName, role: 'Редактор' },
             publishedAt,
             updatedAt: nowIso,
             createdAt: existingArticle?.createdAt || nowIso,
@@ -848,7 +848,7 @@ export default function EditorPage() {
         content: content.length ? content : [{ type: 'paragraph', value: 'Текст статьи...' }],
         category: categories.find(c => c.slug === categorySlug) || categories[0],
         tags,
-        author: { name: authorName || 'Редакция', role: 'Editor' },
+        author: { name: authorName || 'Редакция', role: 'Редактор' },
         publishedAt: new Date().toISOString(),
         heroImage,
         heroImageSquare,
@@ -906,7 +906,7 @@ export default function EditorPage() {
                             <>
                                 <img
                                     src={heroImage}
-                                    alt="Cover"
+                                    alt="Обложка"
                                     className="w-full h-full object-cover"
                                     onClick={handleHeroFocalPick}
                                 />
@@ -926,7 +926,7 @@ export default function EditorPage() {
                         ) : (
                             <div className="w-full h-full flex items-center justify-center text-muted-foreground gap-2">
                                 <ImageIcon className="w-5 h-5" />
-                                <span className="text-sm font-medium">Добавить обложку (клик или drop)</span>
+                                <span className="text-sm font-medium">Добавить обложку (клик или перетащить)</span>
                             </div>
                         )}
                     </div>
@@ -1086,7 +1086,7 @@ export default function EditorPage() {
 
                     <div className="space-y-6">
                         <div className="grid gap-2">
-                            <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">URL (Slug)</label>
+                            <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">URL (слаг)</label>
                             <input 
                                 className="w-full bg-transparent border-b border-border py-1 text-sm font-mono text-muted-foreground focus:text-foreground focus:border-accent outline-none transition-colors"
                                 value={slug}
@@ -1094,7 +1094,7 @@ export default function EditorPage() {
                                     setSlug(e.target.value);
                                     setIsSlugManuallyEdited(true);
                                 }}
-                                placeholder="auto-generated"
+                                placeholder="автоматически"
                             />
                         </div>
 
@@ -1247,8 +1247,8 @@ export default function EditorPage() {
                                 </div>
                             )}
                             <div className="flex items-center gap-2">
-                                <Button variant={previewDevice === 'desktop' ? 'default' : 'ghost'} size="sm" onClick={() => setPreviewDevice('desktop')}>Desktop</Button>
-                                <Button variant={previewDevice === 'mobile' ? 'default' : 'ghost'} size="sm" onClick={() => setPreviewDevice('mobile')}>Mobile</Button>
+                                <Button variant={previewDevice === 'desktop' ? 'default' : 'ghost'} size="sm" onClick={() => setPreviewDevice('desktop')}>Десктоп</Button>
+                                <Button variant={previewDevice === 'mobile' ? 'default' : 'ghost'} size="sm" onClick={() => setPreviewDevice('mobile')}>Мобильный</Button>
                             </div>
                             <Button variant="ghost" size="sm" onClick={() => setIsPreviewOpen(false)}>
                                 <X className="w-4 h-4 mr-2" /> Закрыть

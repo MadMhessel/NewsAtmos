@@ -25,6 +25,7 @@ function default_config() {
       ['slug' => 'city', 'title' => 'Город'],
       ['slug' => 'transport', 'title' => 'Транспорт'],
       ['slug' => 'incidents', 'title' => 'Происшествия'],
+      ['slug' => 'russia-world', 'title' => 'Россия и Мир'],
       ['slug' => 'sports', 'title' => 'Спорт'],
       ['slug' => 'events', 'title' => 'События'],
       ['slug' => 'real-estate', 'title' => 'Недвижимость'],
