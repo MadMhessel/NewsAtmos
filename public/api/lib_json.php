@@ -1,7 +1,7 @@
 <?php
 
 function data_root(): string {
-  return dirname(__DIR__) . '/data';
+  return __DIR__ . '/data';
 }
 
 function data_path(string $file): string {
