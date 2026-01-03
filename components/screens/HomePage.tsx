@@ -28,12 +28,9 @@ export default function HomePage() {
     settings.nowReadingCount || 6,
     { excludeIds: featured ? [featured.id] : [], maxAgeHours: settings.nowReadingMaxAgeHours || 72 }
   )
-  const nowReadingIds = new Set(nowReading.map(a => a.id))
-
-  // Основная лента: исключаем то, что уже показали в «Сейчас читают»
-  const mainFeedPool = allLatest.filter(a => !nowReadingIds.has(a.id))
-  const visibleArticles = mainFeedPool.slice(0, displayCount)
-  const hasMore = displayCount < mainFeedPool.length
+  // Основная лента: показываем все свежие новости по порядку публикации
+  const visibleArticles = allLatest.slice(0, displayCount)
+  const hasMore = displayCount < allLatest.length
 
   const handleShowMore = () => {
     setIsLoading(true)

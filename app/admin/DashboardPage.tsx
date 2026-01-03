@@ -93,6 +93,8 @@ export default function DashboardPage() {
     return matchesSearch && matchesStatus;
   });
 
+  const totalViews = articles.reduce((sum, article) => sum + (article.views ?? 0), 0);
+
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -129,8 +131,9 @@ export default function DashboardPage() {
                         onChange={(e) => setSearch(e.target.value)}
                     />
                 </div>
-                <div className="text-sm text-muted-foreground ml-auto">
-                    Всего: {filteredArticles.length}
+                <div className="ml-auto flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+                    <span>Всего: {filteredArticles.length}</span>
+                    <span>Просмотров всего: {totalViews}</span>
                 </div>
             </div>
             
@@ -168,7 +171,7 @@ export default function DashboardPage() {
                                     </span>
                                 </td>
                                 <td className="p-4 text-muted-foreground whitespace-nowrap">
-                                    {article.views ?? 0}
+                                    {article.status === 'published' ? article.views ?? 0 : '—'}
                                 </td>
                                 <td className="p-4 text-muted-foreground whitespace-nowrap">
                                     {formatDateShort(article.publishedAt)}

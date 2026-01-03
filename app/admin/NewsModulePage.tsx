@@ -65,6 +65,14 @@ type RssSource = {
   defaultTags?: string[];
 };
 
+type DefaultRssSource = {
+  name: string;
+  feedUrl: string;
+  categorySlug: string;
+  enabled?: boolean;
+  defaultTags?: string[];
+};
+
 const getAdminToken = () => {
   try {
     if (typeof window === 'undefined') return null;
@@ -122,6 +130,10 @@ const defaultConfig: Config = {
     { slug: 'sports', title: 'Спорт' },
     { slug: 'events', title: 'События' },
     { slug: 'real-estate', title: 'Недвижимость' },
+    { slug: 'nn-region', title: 'Нижний Новгород и область' },
+    { slug: 'federal', title: 'Федеральные СМИ' },
+    { slug: 'business', title: 'Экономика и недвижимость' },
+    { slug: 'society', title: 'Политика и общество' },
   ],
   rssPollLimitPerRun: 50,
   incomingMaxItems: 2000,
@@ -136,6 +148,165 @@ const defaultConfig: Config = {
   appendSourceBlock: true,
   allowQuotesOnlyIfPresent: true,
   newsVersion: 0,
+};
+
+const DEFAULT_RSS_SOURCES: DefaultRssSource[] = [
+  {
+    name: 'НИА «Нижний Новгород»',
+    feedUrl: 'https://www.niann.ru/rss',
+    categorySlug: 'nn-region',
+  },
+  {
+    name: '«Время Н»',
+    feedUrl: 'https://www.vremyan.ru/rss/news.rss',
+    categorySlug: 'nn-region',
+  },
+  {
+    name: 'ИА «НТА-Приволжье» (НН/ПФО)',
+    feedUrl: 'https://nta-pfo.ru/rss/',
+    categorySlug: 'nn-region',
+  },
+  {
+    name: 'Newsroom24 (НН)',
+    feedUrl: 'https://newsroom24.ru/rss4/',
+    categorySlug: 'nn-region',
+  },
+  {
+    name: 'ТАСС',
+    feedUrl: 'https://tass.ru/rss/google.xml',
+    categorySlug: 'federal',
+  },
+  {
+    name: 'Интерфакс (страница RSS)',
+    feedUrl: 'https://www.interfax.ru/rss.asp',
+    categorySlug: 'federal',
+  },
+  {
+    name: 'РБК (новости)',
+    feedUrl: 'https://rssexport.rbc.ru/rbcnews/news/30/full.rss',
+    categorySlug: 'federal',
+  },
+  {
+    name: 'Лента.ру (список и шаблоны лент)',
+    feedUrl: 'https://lenta.ru/info/posts/export/',
+    categorySlug: 'federal',
+  },
+  {
+    name: 'Коммерсантъ (главное)',
+    feedUrl: 'https://www.kommersant.ru/RSS/main.xml',
+    categorySlug: 'federal',
+  },
+  {
+    name: 'Коммерсантъ (каталог лент)',
+    feedUrl: 'https://www.kommersant.ru/rss-list',
+    categorySlug: 'federal',
+  },
+  {
+    name: 'Московский комсомолец (каталог лент)',
+    feedUrl: 'https://www.mk.ru/rss/',
+    categorySlug: 'federal',
+  },
+  {
+    name: 'Ведомости (каталог лент)',
+    feedUrl: 'https://www.vedomosti.ru/info/rss',
+    categorySlug: 'federal',
+  },
+  {
+    name: 'Газета.Ru',
+    feedUrl: 'https://www.gazeta.ru/rss',
+    categorySlug: 'federal',
+  },
+  {
+    name: 'Ведомости — все новости',
+    feedUrl: 'https://www.vedomosti.ru/rss/news',
+    categorySlug: 'business',
+  },
+  {
+    name: 'Ведомости — недвижимость',
+    feedUrl: 'https://www.vedomosti.ru/rss/rubric/realty',
+    categorySlug: 'business',
+  },
+  {
+    name: 'Ведомости — стройки и инфраструктура',
+    feedUrl: 'https://www.vedomosti.ru/rss/rubric/realty/infrastructure',
+    categorySlug: 'business',
+  },
+  {
+    name: 'Ведомости — архитектура и дизайн',
+    feedUrl: 'https://www.vedomosti.ru/rss/rubric/realty/architecture',
+    categorySlug: 'business',
+  },
+  {
+    name: 'РБК (единая новостная лента)',
+    feedUrl: 'https://rssexport.rbc.ru/rbcnews/news/30/full.rss',
+    categorySlug: 'business',
+  },
+  {
+    name: 'Коммерсантъ (каталог лент по разделам)',
+    feedUrl: 'https://www.kommersant.ru/rss-list',
+    categorySlug: 'business',
+  },
+  {
+    name: 'Интерфакс (страница RSS)',
+    feedUrl: 'https://www.interfax.ru/rss.asp',
+    categorySlug: 'business',
+  },
+  {
+    name: 'Лента.ру — новости',
+    feedUrl: 'https://lenta.ru/rss/news',
+    categorySlug: 'society',
+  },
+  {
+    name: 'Лента.ру — топ-7',
+    feedUrl: 'https://lenta.ru/rss/top7',
+    categorySlug: 'society',
+  },
+  {
+    name: 'Лента.ру — главные за 24 часа',
+    feedUrl: 'https://lenta.ru/rss/last24',
+    categorySlug: 'society',
+  },
+  {
+    name: 'Лента.ру — Россия',
+    feedUrl: 'https://lenta.ru/rss/news/russia',
+    categorySlug: 'society',
+  },
+  {
+    name: 'Лента.ру — Мир',
+    feedUrl: 'https://lenta.ru/rss/news/world',
+    categorySlug: 'society',
+  },
+  {
+    name: 'Коммерсантъ — главное',
+    feedUrl: 'https://www.kommersant.ru/RSS/main.xml',
+    categorySlug: 'society',
+  },
+  {
+    name: 'Коммерсантъ — каталог лент',
+    feedUrl: 'https://www.kommersant.ru/rss-list',
+    categorySlug: 'society',
+  },
+  {
+    name: 'МК — новостная лента',
+    feedUrl: 'https://www.mk.ru/rss/news/index.xml',
+    categorySlug: 'society',
+  },
+  {
+    name: 'МК — каталог лент',
+    feedUrl: 'https://www.mk.ru/rss/',
+    categorySlug: 'society',
+  },
+];
+
+const buildDefaultRssSources = (categories: { slug: string; title: string }[]): RssSource[] => {
+  const bySlug = new Map(categories.map((c) => [c.slug, c]));
+  return DEFAULT_RSS_SOURCES.map((source) => ({
+    name: source.name,
+    feedUrl: source.feedUrl,
+    enabled: source.enabled ?? true,
+    defaultTags: source.defaultTags,
+    category: bySlug.get(source.categorySlug) || categories[0],
+  }));
 };
 
 const statusLabel: Record<string, string> = {
@@ -195,6 +366,7 @@ const NewsModulePage: React.FC = () => {
   const [newsItems, setNewsItems] = useState<Article[]>([]);
   const [config, setConfig] = useState<Config>(defaultConfig);
   const [rssSources, setRssSources] = useState<RssSource[]>([]);
+  const [rssCategoryFilter, setRssCategoryFilter] = useState<string>('all');
   const [aiAdminToken, setAiAdminToken] = useState(() => {
     try {
       return typeof window !== 'undefined' ? localStorage.getItem('admin_token') || '' : '';
@@ -292,9 +464,13 @@ const NewsModulePage: React.FC = () => {
       const res = await apiFetch(API_RSS);
       if (!res.ok) throw new Error('rss');
       const data = await res.json();
-      setRssSources(Array.isArray(data) ? data : []);
+      if (Array.isArray(data) && data.length > 0) {
+        setRssSources(data);
+      } else {
+        setRssSources(buildDefaultRssSources(config.allowedCategories));
+      }
     } catch {
-      setRssSources([]);
+      setRssSources(buildDefaultRssSources(config.allowedCategories));
     }
   };
 
@@ -352,6 +528,12 @@ const NewsModulePage: React.FC = () => {
       })
       .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
   }, [newsItems, newsSearch, activeTab]);
+
+  const filteredRssSources = useMemo(() => {
+    const indexed = rssSources.map((source, index) => ({ source, index }));
+    if (rssCategoryFilter === 'all') return indexed;
+    return indexed.filter(({ source }) => source.category?.slug === rssCategoryFilter);
+  }, [rssSources, rssCategoryFilter]);
 
   const openIncomingEditor = async (item: IncomingItem) => {
     setEditor({ mode: 'incoming', item });
@@ -1131,39 +1313,49 @@ const NewsModulePage: React.FC = () => {
               </section>
 
               <section className="rounded-xl border border-border bg-card p-5 space-y-4">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <h2 className="text-lg font-semibold">Источники RSS</h2>
                     <p className="text-xs text-muted-foreground">URL должен начинаться с http/https.</p>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
+                    <select
+                      className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+                      value={rssCategoryFilter}
+                      onChange={(e) => setRssCategoryFilter(e.target.value)}
+                    >
+                      <option value="all">Все категории</option>
+                      {config.allowedCategories.map((c) => (
+                        <option key={c.slug} value={c.slug}>{c.title}</option>
+                      ))}
+                    </select>
                     <Button variant="secondary" onClick={addRssSource}>Добавить</Button>
                     <Button onClick={saveRssSources} disabled={isBusy}>Сохранить</Button>
                   </div>
                 </div>
 
                 <div className="space-y-3">
-                  {rssSources.map((source, idx) => (
-                    <div key={`${source.feedUrl}-${idx}`} className="rounded-lg border border-border p-4 space-y-3">
+                  {filteredRssSources.map(({ source, index }) => (
+                    <div key={`${source.feedUrl}-${index}`} className="rounded-lg border border-border p-4 space-y-3">
                       <div className="flex flex-wrap gap-3 items-center">
                         <Input
                           className="flex-1 min-w-[180px]"
                           placeholder="Название"
                           value={source.name}
-                          onChange={(e) => updateRssSource(idx, { name: e.target.value })}
+                          onChange={(e) => updateRssSource(index, { name: e.target.value })}
                         />
                         <Input
                           className="flex-[2] min-w-[240px]"
                           placeholder="https://example.com/rss"
                           value={source.feedUrl}
-                          onChange={(e) => updateRssSource(idx, { feedUrl: e.target.value })}
+                          onChange={(e) => updateRssSource(index, { feedUrl: e.target.value })}
                         />
                         <select
                           className="h-10 rounded-md border border-input bg-background px-3 text-sm"
                           value={source.category?.slug || config.defaultCategorySlug}
                           onChange={(e) => {
                             const selected = config.allowedCategories.find((c) => c.slug === e.target.value);
-                            updateRssSource(idx, { category: selected || config.allowedCategories[0] });
+                            updateRssSource(index, { category: selected || config.allowedCategories[0] });
                           }}
                         >
                           {config.allowedCategories.map((c) => (
@@ -1174,11 +1366,11 @@ const NewsModulePage: React.FC = () => {
                           <input
                             type="checkbox"
                             checked={!!source.enabled}
-                            onChange={(e) => updateRssSource(idx, { enabled: e.target.checked })}
+                            onChange={(e) => updateRssSource(index, { enabled: e.target.checked })}
                           />
                           Включён
                         </label>
-                        <Button variant="ghost" onClick={() => deleteRssSource(idx)}>
+                        <Button variant="ghost" onClick={() => deleteRssSource(index)}>
                           <Trash2 className="w-4 h-4" />
                         </Button>
                       </div>
@@ -1186,7 +1378,7 @@ const NewsModulePage: React.FC = () => {
                         <label className="text-xs text-muted-foreground">Теги по умолчанию (через запятую)</label>
                         <Input
                           value={(source.defaultTags || []).join(', ')}
-                          onChange={(e) => updateRssSource(idx, { defaultTags: e.target.value.split(',').map((t) => t.trim()).filter(Boolean) })}
+                          onChange={(e) => updateRssSource(index, { defaultTags: e.target.value.split(',').map((t) => t.trim()).filter(Boolean) })}
                         />
                       </div>
                     </div>
@@ -1476,6 +1668,16 @@ const NewsModulePage: React.FC = () => {
                     <p className="text-xs text-muted-foreground">URL должен начинаться с http/https.</p>
                   </div>
                   <div className="flex flex-wrap gap-2">
+                    <select
+                      className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+                      value={rssCategoryFilter}
+                      onChange={(e) => setRssCategoryFilter(e.target.value)}
+                    >
+                      <option value="all">Все категории</option>
+                      {config.allowedCategories.map((c) => (
+                        <option key={c.slug} value={c.slug}>{c.title}</option>
+                      ))}
+                    </select>
                     <Button variant="secondary" onClick={addRssSource}>Добавить источник</Button>
                     <Button variant="secondary" onClick={runRssPull}>Прогнать сбор сейчас</Button>
                     <Button onClick={saveRssSources} disabled={isBusy}>Сохранить</Button>
@@ -1483,27 +1685,27 @@ const NewsModulePage: React.FC = () => {
                 </div>
 
                 <div className="space-y-3">
-                  {rssSources.map((source, idx) => (
-                    <div key={`${source.feedUrl}-${idx}`} className="rounded-lg border border-border p-4 space-y-3">
+                  {filteredRssSources.map(({ source, index }) => (
+                    <div key={`${source.feedUrl}-${index}`} className="rounded-lg border border-border p-4 space-y-3">
                       <div className="flex flex-wrap gap-3 items-center">
                         <Input
                           className="flex-1 min-w-[180px]"
                           placeholder="Название"
                           value={source.name}
-                          onChange={(e) => updateRssSource(idx, { name: e.target.value })}
+                          onChange={(e) => updateRssSource(index, { name: e.target.value })}
                         />
                         <Input
                           className="flex-[2] min-w-[240px]"
                           placeholder="https://example.com/rss"
                           value={source.feedUrl}
-                          onChange={(e) => updateRssSource(idx, { feedUrl: e.target.value })}
+                          onChange={(e) => updateRssSource(index, { feedUrl: e.target.value })}
                         />
                         <select
                           className="h-10 rounded-md border border-input bg-background px-3 text-sm"
                           value={source.category?.slug || config.defaultCategorySlug}
                           onChange={(e) => {
                             const selected = config.allowedCategories.find((c) => c.slug === e.target.value);
-                            updateRssSource(idx, { category: selected || config.allowedCategories[0] });
+                            updateRssSource(index, { category: selected || config.allowedCategories[0] });
                           }}
                         >
                           {config.allowedCategories.map((c) => (
@@ -1514,11 +1716,11 @@ const NewsModulePage: React.FC = () => {
                           <input
                             type="checkbox"
                             checked={!!source.enabled}
-                            onChange={(e) => updateRssSource(idx, { enabled: e.target.checked })}
+                            onChange={(e) => updateRssSource(index, { enabled: e.target.checked })}
                           />
                           Включён
                         </label>
-                        <Button variant="ghost" onClick={() => deleteRssSource(idx)}>
+                        <Button variant="ghost" onClick={() => deleteRssSource(index)}>
                           <Trash2 className="w-4 h-4" />
                         </Button>
                       </div>
@@ -1526,7 +1728,7 @@ const NewsModulePage: React.FC = () => {
                         <label className="text-xs text-muted-foreground">Теги по умолчанию (через запятую)</label>
                         <Input
                           value={(source.defaultTags || []).join(', ')}
-                          onChange={(e) => updateRssSource(idx, { defaultTags: e.target.value.split(',').map((t) => t.trim()).filter(Boolean) })}
+                          onChange={(e) => updateRssSource(index, { defaultTags: e.target.value.split(',').map((t) => t.trim()).filter(Boolean) })}
                         />
                       </div>
                     </div>
