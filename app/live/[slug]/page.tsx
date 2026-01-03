@@ -32,7 +32,7 @@ const sortUpdates = (updates: LiveUpdate[], direction: 'asc' | 'desc') => {
 export default function LiveStreamPage() {
   const params = useParams();
   const slug = params.slug as string;
-  const [stream, setStream] = useState<LiveStream | null>(null);
+  const [stream, setStream] = useState<LiveStream | null>(() => liveService.getBySlug(slug) || null);
 
   const [order, setOrder] = useState<'desc' | 'asc'>('desc');
   const [updates, setUpdates] = useState<LiveUpdate[]>([]);
