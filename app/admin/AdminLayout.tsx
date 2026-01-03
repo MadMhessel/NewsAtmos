@@ -28,6 +28,11 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const handleLogout = () => {
     sessionStorage.removeItem('admin_auth');
       sessionStorage.removeItem('admin_token');
+    try {
+      localStorage.removeItem('admin_token');
+    } catch {
+      // ignore storage errors
+    }
     setIsAuthenticated(false);
   };
 
