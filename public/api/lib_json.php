@@ -4,8 +4,16 @@ function data_root(): string {
   return dirname(__DIR__) . '/data';
 }
 
+function legacy_data_root(): string {
+  return __DIR__ . '/data';
+}
+
 function data_path(string $file): string {
   return rtrim(data_root(), '/\\') . '/' . ltrim($file, '/\\');
+}
+
+function legacy_data_path(string $file): string {
+  return rtrim(legacy_data_root(), '/\\') . '/' . ltrim($file, '/\\');
 }
 
 function ensure_data_dir(string $dir): bool {
@@ -19,6 +27,15 @@ function read_json(string $path, $fallback = []) {
   if ($raw === false || trim($raw) === '') return $fallback;
   $data = json_decode($raw, true);
   return is_array($data) ? $data : $fallback;
+}
+
+function read_json_with_legacy(string $path, $fallback = []) {
+  if (file_exists($path)) {
+    return read_json($path, $fallback);
+  }
+  $legacyPath = legacy_data_path(basename($path));
+  if (!file_exists($legacyPath)) return $fallback;
+  return read_json($legacyPath, $fallback);
 }
 
 function write_json_atomic(string $path, $data): bool {

@@ -46,7 +46,7 @@ function normalize_timestamp($value) {
 $method = $_SERVER['REQUEST_METHOD'];
 
 if ($method === 'GET') {
-  $data = read_json($path, []);
+  $data = read_json_with_legacy($path, []);
   $streamId = isset($_GET['streamId']) ? $_GET['streamId'] : null;
   $afterRaw = isset($_GET['after']) ? $_GET['after'] : null;
   $after = normalize_timestamp($afterRaw);
@@ -99,7 +99,7 @@ if ($method === 'POST') {
     exit;
   }
 
-  $config = read_json($configPath, []);
+  $config = read_json_with_legacy($configPath, []);
   $config['liveVersion'] = isset($config['liveVersion']) ? ((int)$config['liveVersion'] + 1) : 1;
   write_json_atomic($configPath, $config);
 

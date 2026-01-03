@@ -26,7 +26,7 @@ if (!ensure_data_dir(data_root())) {
   exit;
 }
 
-$config = read_json($configPath, []);
+$config = read_json_with_legacy($configPath, []);
 $pollIntervalMinutes = isset($config['pollIntervalMinutes']) ? (int)$config['pollIntervalMinutes'] : 0;
 if ($pollIntervalMinutes > 0 && file_exists($logPath)) {
   $lastRun = filemtime($logPath);
@@ -47,15 +47,15 @@ $dedupWindowDays = isset($config['dedupWindowDays']) ? (int)$config['dedupWindow
 $stripHtml = isset($config['stripHtml']) ? (bool)$config['stripHtml'] : true;
 $normalizeWhitespace = isset($config['normalizeWhitespace']) ? (bool)$config['normalizeWhitespace'] : true;
 
-$sources = read_json($sourcesPath, []);
+$sources = read_json_with_legacy($sourcesPath, []);
 if (!is_array($sources)) {
   http_response_code(500);
   echo json_encode(['ok' => false, 'error' => 'rss_sources.json invalid'], JSON_UNESCAPED_UNICODE);
   exit;
 }
 
-$incoming = read_json($incomingPath, []);
-$seen = read_json($seenPath, []);
+$incoming = read_json_with_legacy($incomingPath, []);
+$seen = read_json_with_legacy($seenPath, []);
 if (!is_array($seen)) $seen = [];
 
 $nowTs = time();

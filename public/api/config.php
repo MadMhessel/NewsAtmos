@@ -68,7 +68,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     exit;
   }
 
-  echo json_encode(read_json($path, default_config()), JSON_UNESCAPED_UNICODE);
+  echo json_encode(read_json_with_legacy($path, default_config()), JSON_UNESCAPED_UNICODE);
   exit;
 }
 

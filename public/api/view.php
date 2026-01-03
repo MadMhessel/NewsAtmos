@@ -34,7 +34,7 @@ if ($id === '') {
   exit;
 }
 
-$items = read_json($path, []);
+$items = read_json_with_legacy($path, []);
 $changed = false;
 
 for ($i = 0; $i < count($items); $i++) {

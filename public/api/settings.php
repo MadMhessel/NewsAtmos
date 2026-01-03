@@ -34,7 +34,7 @@ function default_settings() {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-  echo json_encode(read_json($path, default_settings()), JSON_UNESCAPED_UNICODE);
+  echo json_encode(read_json_with_legacy($path, default_settings()), JSON_UNESCAPED_UNICODE);
   exit;
 }
 

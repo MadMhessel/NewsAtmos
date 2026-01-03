@@ -16,7 +16,7 @@ require_once __DIR__ . '/lib_json.php';
 $path = data_path('rss_sources.json');
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-  echo json_encode(read_json($path, []), JSON_UNESCAPED_UNICODE);
+  echo json_encode(read_json_with_legacy($path, []), JSON_UNESCAPED_UNICODE);
   exit;
 }
 
