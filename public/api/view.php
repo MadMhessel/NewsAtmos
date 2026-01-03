@@ -6,6 +6,8 @@ header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 header('Pragma: no-cache');
 
+require_once __DIR__ . '/lib_json.php';
+
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
   // Для дев-окружений. На проде CORS не нужен (same-origin).
   header('Access-Control-Allow-Origin: *');
@@ -14,26 +16,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
   exit;
 }
 
-$path = __DIR__ . '/news.json';
-
-function read_json_file($path) {
-  if (!file_exists($path)) return [];
-  $raw = file_get_contents($path);
-  if ($raw === false) return [];
-  $data = json_decode($raw, true);
-  return is_array($data) ? $data : [];
-}
-
-function write_json_file($path, $data) {
-  $dir = dirname($path);
-  if (!is_dir($dir)) return false;
-  $tmp = $path . '.tmp';
-  $json = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
-  if ($json === false) return false;
-  $ok = file_put_contents($tmp, $json, LOCK_EX);
-  if ($ok === false) return false;
-  return rename($tmp, $path);
-}
+$path = data_path('news.json');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
   http_response_code(405);
@@ -51,7 +34,7 @@ if ($id === '') {
   exit;
 }
 
-$items = read_json_file($path);
+$items = read_json($path, []);
 $changed = false;
 
 for ($i = 0; $i < count($items); $i++) {
@@ -72,7 +55,7 @@ for ($i = 0; $i < count($items); $i++) {
 
 if ($changed) {
   // Если не удалось записать — всё равно отвечаем ok, чтобы не ломать страницу.
-  write_json_file($path, $items);
+  write_json_atomic($path, $items);
 }
 
 echo json_encode(['ok' => true], JSON_UNESCAPED_UNICODE);

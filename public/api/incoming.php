@@ -13,8 +13,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 require_once __DIR__ . '/_auth.php';
 require_once __DIR__ . '/lib_json.php';
 
-$dataDir = __DIR__ . '/data';
-$incomingPath = $dataDir . '/incoming.json';
+$incomingPath = data_path('incoming.json');
 
 $method = $_SERVER['REQUEST_METHOD'];
 $action = isset($_GET['action']) ? $_GET['action'] : '';

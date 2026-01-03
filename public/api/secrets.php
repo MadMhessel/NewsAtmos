@@ -13,7 +13,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 require_once __DIR__ . '/_auth.php';
 require_once __DIR__ . '/lib_json.php';
 
-$path = __DIR__ . '/data/secrets.php';
+$path = data_path('secrets.php');
 $keys = ['REWRITE_SERVICE_URL', 'HMAC_SECRET', 'INTERNAL_TOOL_TOKEN'];
 
 function write_php_array_atomic(string $path, array $data): bool {

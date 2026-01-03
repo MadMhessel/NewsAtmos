@@ -13,7 +13,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 require_once __DIR__ . '/_auth.php';
 require_once __DIR__ . '/lib_json.php';
 
-$path = __DIR__ . '/data/rss_sources.json';
+$path = data_path('rss_sources.json');
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
   echo json_encode(read_json($path, []), JSON_UNESCAPED_UNICODE);

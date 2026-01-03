@@ -9,19 +9,18 @@ if (php_sapi_name() !== 'cli') {
   require_cron_token();
 }
 
-$dataDir = __DIR__ . '/data';
-$sourcesPath = $dataDir . '/rss_sources.json';
-$incomingPath = $dataDir . '/incoming.json';
-$seenPath = $dataDir . '/seen.json';
-$configPath = $dataDir . '/config.json';
-$logPath = $dataDir . '/rss_log.txt';
+$sourcesPath = data_path('rss_sources.json');
+$incomingPath = data_path('incoming.json');
+$seenPath = data_path('seen.json');
+$configPath = data_path('config.json');
+$logPath = data_path('rss_log.txt');
 
 function log_message($path, $message) {
   $line = '[' . gmdate('c') . '] ' . $message . "\n";
   file_put_contents($path, $line, FILE_APPEND | LOCK_EX);
 }
 
-if (!ensure_data_dir($dataDir)) {
+if (!ensure_data_dir(data_root())) {
   http_response_code(500);
   echo json_encode(['ok' => false, 'error' => 'Cannot create data directory'], JSON_UNESCAPED_UNICODE);
   exit;
