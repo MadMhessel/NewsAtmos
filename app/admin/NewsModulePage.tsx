@@ -401,7 +401,7 @@ const NewsModulePage: React.FC = () => {
   };
 
   const getFreshConfig = async () => {
-    const res = await fetch(API_CONFIG);
+    const res = await apiFetch(API_CONFIG);
     if (!res.ok) throw new Error('Не удалось получить настройки');
     return res.json();
   };
