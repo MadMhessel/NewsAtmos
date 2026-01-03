@@ -13,7 +13,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 require_once __DIR__ . '/_auth.php';
 require_once __DIR__ . '/lib_json.php';
 
-$path = __DIR__ . '/data/config.json';
+$path = data_path('config.json');
 
 function default_config() {
   return [
@@ -56,11 +56,12 @@ function default_config() {
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
   require_admin();
   if (isset($_GET['action']) && $_GET['action'] === 'check_write') {
-    $testPath = __DIR__ . '/data/.write_test';
+    $testPath = data_path('.write_test');
+    ensure_data_dir(data_root());
     $ok = @file_put_contents($testPath, (string)time(), LOCK_EX);
     if ($ok === false) {
       http_response_code(500);
-      echo json_encode(['ok' => false, 'error' => 'Не удалось записать файл в /api/data'], JSON_UNESCAPED_UNICODE);
+      echo json_encode(['ok' => false, 'error' => 'Не удалось записать файл в /data'], JSON_UNESCAPED_UNICODE);
       exit;
     }
     echo json_encode(['ok' => true], JSON_UNESCAPED_UNICODE);

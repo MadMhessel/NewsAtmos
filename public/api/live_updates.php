@@ -6,7 +6,7 @@ header('Pragma: no-cache');
 require_once __DIR__ . '/_auth.php';
 require_once __DIR__ . '/lib_json.php';
 
-$configPath = __DIR__ . '/data/config.json';
+$configPath = data_path('config.json');
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
   header('Access-Control-Allow-Origin: *');
@@ -15,11 +15,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
   exit;
 }
 
-$path = __DIR__ . '/live_updates.json';
+$path = data_path('live_updates.json');
 
 function backup_live_updates_file($path) {
   if (!file_exists($path)) return;
-  $dir = __DIR__ . '/backups';
+  $dir = data_path('backups');
   if (!is_dir($dir)) {
     mkdir($dir, 0755, true);
   }

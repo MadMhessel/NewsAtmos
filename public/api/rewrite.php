@@ -14,9 +14,8 @@ require_once __DIR__ . '/_auth.php';
 require_once __DIR__ . '/lib_json.php';
 require_once __DIR__ . '/lib_feed.php';
 
-$dataDir = __DIR__ . '/data';
-$incomingPath = $dataDir . '/incoming.json';
-$configPath = $dataDir . '/config.json';
+$incomingPath = data_path('incoming.json');
+$configPath = data_path('config.json');
 
 function extract_text_from_html($html) {
   $html = preg_replace('#<(script|style)[^>]*>.*?</\1>#si', ' ', $html);

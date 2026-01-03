@@ -13,7 +13,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 require_once __DIR__ . '/_auth.php';
 require_once __DIR__ . '/lib_json.php';
 
-$path = __DIR__ . '/settings.json';
+$path = data_path('settings.json');
 
 function default_settings() {
   return [

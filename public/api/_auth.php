@@ -3,6 +3,8 @@
 // ВАЖНО: это не заменяет полноценную авторизацию, но закрывает самый опасный сценарий:
 // когда кто угодно может POST-ом перезаписать новости/настройки/загрузки.
 
+require_once __DIR__ . '/lib_json.php';
+
 const ADMIN_TOKEN_SHA256 = 'da03c698dbef2649ddf0af56552483c31de6954d03d065da949b6a5c6d285b6b';
 
 function get_header_value(string $name): ?string {
@@ -18,7 +20,7 @@ function get_header_value(string $name): ?string {
 }
 
 function load_secrets(): array {
-  $path = __DIR__ . '/data/secrets.php';
+  $path = data_path('secrets.php');
   if (!file_exists($path)) return [];
   $data = require $path;
   return is_array($data) ? $data : [];

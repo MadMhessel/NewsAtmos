@@ -5,8 +5,8 @@ header('Pragma: no-cache');
 
 require_once __DIR__ . '/../lib_json.php';
 
-$streamsPath = __DIR__ . '/../live_streams.json';
-$updatesPath = __DIR__ . '/../live_updates.json';
+$streamsPath = data_path('live_streams.json');
+$updatesPath = data_path('live_updates.json');
 
 function parse_path_segments() {
   $pathInfo = isset($_SERVER['PATH_INFO']) ? trim($_SERVER['PATH_INFO'], '/') : '';

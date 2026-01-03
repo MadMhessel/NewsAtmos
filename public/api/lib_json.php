@@ -1,5 +1,13 @@
 <?php
 
+function data_root(): string {
+  return dirname(__DIR__, 2) . '/data';
+}
+
+function data_path(string $file): string {
+  return rtrim(data_root(), '/\\') . '/' . ltrim($file, '/\\');
+}
+
 function ensure_data_dir(string $dir): bool {
   if (is_dir($dir)) return true;
   return mkdir($dir, 0755, true);
