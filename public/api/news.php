@@ -39,7 +39,7 @@ function backup_news_file($path) {
 $method = $_SERVER['REQUEST_METHOD'];
 
 if ($method === 'GET') {
-  $data = read_json($path, []);
+  $data = read_json_with_legacy($path, []);
   echo json_encode($data, JSON_UNESCAPED_UNICODE);
   exit;
 }
@@ -64,7 +64,7 @@ if ($method === 'POST') {
     exit;
   }
 
-  $config = read_json($configPath, []);
+  $config = read_json_with_legacy($configPath, []);
   $config['newsVersion'] = isset($config['newsVersion']) ? ((int)$config['newsVersion'] + 1) : 1;
   write_json_atomic($configPath, $config);
 

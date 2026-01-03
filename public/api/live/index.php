@@ -33,7 +33,7 @@ if (count($segments) >= 2 && $segments[1] === 'updates') {
   $afterRaw = isset($_GET['after']) ? $_GET['after'] : null;
   $after = normalize_timestamp($afterRaw);
 
-  $updates = read_json($updatesPath, []);
+  $updates = read_json_with_legacy($updatesPath, []);
   $updates = array_values(array_filter($updates, function ($item) use ($streamId, $after) {
     if (!isset($item['liveStreamId']) || $item['liveStreamId'] !== $streamId) return false;
     if ($after === null) return true;
@@ -63,7 +63,7 @@ if (!$slug) {
   exit;
 }
 
-$streams = read_json($streamsPath, []);
+$streams = read_json_with_legacy($streamsPath, []);
 $stream = null;
 foreach ($streams as $item) {
   if (!isset($item['slug'])) continue;
@@ -82,7 +82,7 @@ if (!$stream || !is_public_stream($stream)) {
 $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 200;
 if ($limit <= 0) $limit = 200;
 
-$updates = read_json($updatesPath, []);
+$updates = read_json_with_legacy($updatesPath, []);
 $updates = array_values(array_filter($updates, function ($item) use ($stream) {
   return isset($item['liveStreamId']) && $item['liveStreamId'] === $stream['id'];
 }));

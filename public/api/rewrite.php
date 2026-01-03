@@ -130,7 +130,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     exit;
   }
 
-  $config = read_json($configPath, []);
+  $config = read_json_with_legacy($configPath, []);
   $timeout = isset($config['rewriteTimeoutSec']) ? (int)$config['rewriteTimeoutSec'] : 25;
 
   $secrets = get_rewrite_secrets();
@@ -264,10 +264,10 @@ if ($id === '') {
   exit;
 }
 
-$config = read_json($configPath, []);
+$config = read_json_with_legacy($configPath, []);
 $rewriteMaxChars = isset($config['rewriteMaxChars']) ? (int)$config['rewriteMaxChars'] : 14000;
 
-$items = read_json($incomingPath, []);
+$items = read_json_with_legacy($incomingPath, []);
 $foundIndex = null;
 foreach ($items as $idx => $item) {
   if (isset($item['id']) && (string)$item['id'] === $id) {

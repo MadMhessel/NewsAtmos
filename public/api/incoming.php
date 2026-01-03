@@ -20,7 +20,7 @@ $action = isset($_GET['action']) ? $_GET['action'] : '';
 
 if ($method === 'GET') {
   if ($action === 'list') {
-    $items = read_json($incomingPath, []);
+    $items = read_json_with_legacy($incomingPath, []);
     $list = [];
     foreach ($items as $item) {
       $list[] = [
@@ -50,7 +50,7 @@ if ($method === 'GET') {
       echo json_encode(['ok' => false, 'error' => 'Не указан id'], JSON_UNESCAPED_UNICODE);
       exit;
     }
-    $items = read_json($incomingPath, []);
+    $items = read_json_with_legacy($incomingPath, []);
     foreach ($items as $item) {
       if (isset($item['id']) && (string)$item['id'] === $id) {
         echo json_encode($item, JSON_UNESCAPED_UNICODE);
@@ -87,7 +87,7 @@ if ($method === 'POST') {
       exit;
     }
 
-    $items = read_json($incomingPath, []);
+    $items = read_json_with_legacy($incomingPath, []);
     $found = false;
     $now = now_utc_iso();
     foreach ($items as $idx => $item) {
@@ -136,7 +136,7 @@ if ($method === 'POST') {
       exit;
     }
 
-    $items = read_json($incomingPath, []);
+    $items = read_json_with_legacy($incomingPath, []);
     $now = now_utc_iso();
     $foundIndex = null;
 
