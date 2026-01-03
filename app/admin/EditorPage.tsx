@@ -982,9 +982,9 @@ export default function EditorPage() {
             </div>
 
             <div className="w-full md:w-80 bg-card border-t md:border-t-0 md:border-l border-border flex flex-col h-auto md:h-screen md:sticky md:top-0 md:overflow-y-auto">
-                <div className="p-4 border-b border-border flex items-center justify-between bg-card z-10 md:sticky md:top-0">
-                    <span className="font-bold text-sm text-muted-foreground uppercase tracking-widest">Публикация</span>
-                    <div className="flex items-center gap-2">
+                <div className="p-4 border-b border-border flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between bg-card z-10 md:sticky md:top-0">
+                    <span className="font-bold text-sm text-muted-foreground uppercase tracking-widest whitespace-nowrap">Публикация</span>
+                    <div className="flex flex-wrap items-center gap-2 sm:justify-end">
                         <Button variant="ghost" size="sm" onClick={() => setIsPreviewOpen(true)}>
                             <Eye className="w-4 h-4 mr-2" /> Предпросмотр
                         </Button>
