@@ -61,7 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $ok = @file_put_contents($testPath, (string)time(), LOCK_EX);
     if ($ok === false) {
       http_response_code(500);
-      echo json_encode(['ok' => false, 'error' => 'Не удалось записать файл в /data'], JSON_UNESCAPED_UNICODE);
+      echo json_encode(['ok' => false, 'error' => 'Не удалось записать файл в /public/api/data'], JSON_UNESCAPED_UNICODE);
       exit;
     }
     echo json_encode(['ok' => true], JSON_UNESCAPED_UNICODE);
