@@ -38,12 +38,14 @@ export function Header() {
           <nav className="hidden lg:flex items-center gap-2">
             {categories.map((cat) => {
               const isActive = location.pathname === `/category/${cat.slug}`;
+              const isLongTitle = cat.title.length > 12;
               return (
                 <Link
                   key={cat.slug}
                   href={`/category/${cat.slug}`}
                   className={cn(
-                    "group relative px-3 py-2 text-[13px] font-medium uppercase tracking-wide transition-colors",
+                    "group relative px-3 py-2 text-[13px] font-medium uppercase tracking-wide transition-colors whitespace-nowrap",
+                    isLongTitle && "text-[11px] tracking-normal normal-case",
                     isActive ? "text-foreground" : "text-muted-foreground hover:text-foreground"
                   )}
                 >

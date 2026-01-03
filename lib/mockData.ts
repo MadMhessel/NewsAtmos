@@ -5,6 +5,7 @@ export const CATEGORIES: Category[] = [
   { slug: 'incidents', title: 'Происшествия' },
   { slug: 'transport', title: 'Транспорт' },
   { slug: 'real-estate', title: 'Недвижимость' },
+  { slug: 'russia-world', title: 'Россия и Мир' },
   { slug: 'events', title: 'Афиша' },
   { slug: 'sports', title: 'Спорт' },
 ];
@@ -108,6 +109,32 @@ export const MOCK_ARTICLES: Article[] = [
     publishedAt: new Date(Date.now() - 1000 * 60 * 60 * 48).toISOString(),
     heroImage: 'https://loremflickr.com/800/600/building,architecture',
     readingTime: 6
+  },
+  {
+    id: '7',
+    slug: 'russia-world-summit',
+    title: 'Россия и Мир: лидеры договорились о совместных проектах в энергетике',
+    excerpt: 'На международном саммите стороны обсудили развитие инфраструктуры и новые технологические обмены.',
+    content: contentTemplate,
+    category: { slug: 'russia-world', title: 'Россия и Мир' },
+    tags: ['дипломатия', 'энергетика', 'международные отношения'],
+    author: { name: 'Служба новостей', role: 'Международный отдел' },
+    publishedAt: new Date(Date.now() - 1000 * 60 * 60 * 6).toISOString(),
+    heroImage: 'https://loremflickr.com/800/600/world,conference',
+    readingTime: 4
+  },
+  {
+    id: '8',
+    slug: 'global-markets-outlook',
+    title: 'Россия и Мир: рынки реагируют на новые торговые соглашения',
+    excerpt: 'Эксперты отмечают рост интереса инвесторов к совместным проектам и логистике.',
+    content: contentTemplate,
+    category: { slug: 'russia-world', title: 'Россия и Мир' },
+    tags: ['экономика', 'рынки', 'торговля'],
+    author: { name: 'Екатерина Литвинова', role: 'Экономический обозреватель' },
+    publishedAt: new Date(Date.now() - 1000 * 60 * 60 * 12).toISOString(),
+    heroImage: 'https://loremflickr.com/800/600/global,market',
+    readingTime: 5
   },
   // Filling up to have more data
   ...Array.from({ length: 15 }).map((_, i) => ({
