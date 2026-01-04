@@ -49,13 +49,26 @@ const fetchNewsJson = async (url: string): Promise<Article[] | null> => {
   }
 };
 
+const validStatuses: ArticleStatus[] = ['draft', 'review', 'scheduled', 'published', 'archived', 'trash'];
+
+const normalizeDate = (...values: Array<string | undefined | null>): string => {
+  for (const value of values) {
+    if (!value) continue;
+    const date = new Date(value);
+    if (!Number.isNaN(date.getTime())) return date.toISOString();
+  }
+  return new Date().toISOString();
+};
+
 function normalizeArticle(a: any): Article {
   const views = typeof a?.views === 'number' && isFinite(a.views) ? Math.max(0, Math.floor(a.views)) : 0;
   const pinnedNowReading = !!a?.pinnedNowReading;
   const pinnedNowReadingRank = typeof a?.pinnedNowReadingRank === 'number' && isFinite(a.pinnedNowReadingRank)
     ? Math.max(0, Math.floor(a.pinnedNowReadingRank))
     : 0;
-  const status = (a?.status as ArticleStatus) || 'published';
+  const statusCandidate = a?.status as ArticleStatus | undefined;
+  const status = validStatuses.includes(statusCandidate as ArticleStatus) ? statusCandidate : 'published';
+  const publishedAt = normalizeDate(a?.publishedAt, a?.createdAt, a?.updatedAt, a?.scheduledAt);
 
   return {
     ...a,
@@ -63,12 +76,21 @@ function normalizeArticle(a: any): Article {
     pinnedNowReading,
     pinnedNowReadingRank,
     status,
+    publishedAt,
   } as Article;
 }
 
 function normalizeArticles(list: any[]): Article[] {
   return (Array.isArray(list) ? list : []).map(normalizeArticle);
 }
+
+const mergeArticles = (primary: Article[], secondary: Article[]): Article[] => {
+  const map = new Map(primary.map(article => [article.id, article]));
+  for (const article of secondary) {
+    if (!map.has(article.id)) map.set(article.id, article);
+  }
+  return Array.from(map.values());
+};
 
 
 // In-memory cache
@@ -98,7 +120,19 @@ export const newsService = {
 
         const data = await response.json();
         if (Array.isArray(data) && data.length > 0) {
-            articlesCache = normalizeArticles(data);
+            const normalized = normalizeArticles(data);
+            let fallbackArticles: Article[] | null = null;
+            for (const url of FALLBACK_NEWS_URLS) {
+              fallbackArticles = await fetchNewsJson(url);
+              if (fallbackArticles && fallbackArticles.length > 0) break;
+            }
+
+            if (fallbackArticles && fallbackArticles.length > 0) {
+              const merged = mergeArticles(normalized, fallbackArticles);
+              articlesCache = normalizeArticles(merged);
+            } else {
+              articlesCache = normalized;
+            }
         } else {
             let fallbackArticles: Article[] | null = null;
             for (const url of FALLBACK_NEWS_URLS) {
