@@ -84,6 +84,14 @@ function normalizeArticles(list: any[]): Article[] {
   return (Array.isArray(list) ? list : []).map(normalizeArticle);
 }
 
+const mergeArticles = (primary: Article[], secondary: Article[]): Article[] => {
+  const map = new Map(primary.map(article => [article.id, article]));
+  for (const article of secondary) {
+    if (!map.has(article.id)) map.set(article.id, article);
+  }
+  return Array.from(map.values());
+};
+
 
 // In-memory cache
 let articlesCache: Article[] = [];
@@ -112,7 +120,19 @@ export const newsService = {
 
         const data = await response.json();
         if (Array.isArray(data) && data.length > 0) {
-            articlesCache = normalizeArticles(data);
+            const normalized = normalizeArticles(data);
+            let fallbackArticles: Article[] | null = null;
+            for (const url of FALLBACK_NEWS_URLS) {
+              fallbackArticles = await fetchNewsJson(url);
+              if (fallbackArticles && fallbackArticles.length > 0) break;
+            }
+
+            if (fallbackArticles && fallbackArticles.length > 0) {
+              const merged = mergeArticles(normalized, fallbackArticles);
+              articlesCache = normalizeArticles(merged);
+            } else {
+              articlesCache = normalized;
+            }
         } else {
             let fallbackArticles: Article[] | null = null;
             for (const url of FALLBACK_NEWS_URLS) {
