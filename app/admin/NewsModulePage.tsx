@@ -32,6 +32,27 @@ type IncomingItem = {
     heroImage?: string;
     heroImageSquare?: string;
     heroImageAuthor?: string;
+    heroFocal?: { x?: number; y?: number };
+    heroFocalX?: number;
+    heroFocalY?: number;
+    status?: ArticleStatus;
+    scheduledAt?: string;
+    slug?: string;
+    authorName?: string;
+    authorRole?: string;
+    author?: { name?: string; role?: string };
+    sourceName?: string;
+    sourceUrl?: string;
+    source?: { name?: string; url?: string };
+    locationCity?: string;
+    locationDistrict?: string;
+    locationAddress?: string;
+    location?: { city?: string; district?: string; address?: string };
+    isVerified?: boolean;
+    isFeatured?: boolean;
+    isBreaking?: boolean;
+    pinnedNowReading?: boolean;
+    pinnedNowReadingRank?: number;
     flags?: string[];
     confidence?: number;
   };
@@ -120,6 +141,8 @@ const normalizeBlocks = (blocks?: ContentBlock[]) => {
 };
 
 const ensureStringArray = (value?: string[]) => (Array.isArray(value) ? value.filter(Boolean) : []);
+const isArticleStatus = (value: unknown): value is ArticleStatus =>
+  value === 'draft' || value === 'review' || value === 'scheduled' || value === 'published' || value === 'archived' || value === 'trash';
 
 const defaultConfig: Config = {
   siteTitle: 'Новости',
@@ -609,6 +632,26 @@ const NewsModulePage: React.FC = () => {
     setEditor({ mode: 'incoming', item });
     const rewrite = item.rewrite || {};
     const title = rewrite.title || item.raw?.title || '';
+    const rewriteAuthorName = rewrite.authorName || rewrite.author?.name;
+    const rewriteAuthorRole = rewrite.authorRole || rewrite.author?.role;
+    const rewriteSourceName = rewrite.sourceName || rewrite.source?.name;
+    const rewriteSourceUrl = rewrite.sourceUrl || rewrite.source?.url;
+    const rewriteLocationCity = rewrite.locationCity || rewrite.location?.city;
+    const rewriteLocationDistrict = rewrite.locationDistrict || rewrite.location?.district;
+    const rewriteLocationAddress = rewrite.locationAddress || rewrite.location?.address;
+    const rewriteHeroFocalX =
+      typeof rewrite.heroFocalX === 'number'
+        ? rewrite.heroFocalX
+        : typeof rewrite.heroFocal?.x === 'number'
+          ? rewrite.heroFocal?.x
+          : null;
+    const rewriteHeroFocalY =
+      typeof rewrite.heroFocalY === 'number'
+        ? rewrite.heroFocalY
+        : typeof rewrite.heroFocal?.y === 'number'
+          ? rewrite.heroFocal?.y
+          : null;
+    const rewriteStatus = isArticleStatus(rewrite.status) ? rewrite.status : 'draft';
     setEditorDraft({
       title,
       excerpt: rewrite.excerpt || item.raw?.summary || '',
@@ -618,23 +661,23 @@ const NewsModulePage: React.FC = () => {
       heroImage: rewrite.heroImage || item.image || '',
       heroImageSquare: rewrite.heroImageSquare || '',
       heroImageAuthor: rewrite.heroImageAuthor || '',
-      heroFocalX: null,
-      heroFocalY: null,
-      status: 'draft',
-      scheduledAt: '',
-      slug: slugify(title),
-      authorName: config.defaultAuthorName,
-      authorRole: config.defaultAuthorRole,
-      sourceName: item.source?.name || '',
-      sourceUrl: item.source?.itemUrl || '',
-      locationCity: '',
-      locationDistrict: '',
-      locationAddress: '',
-      isVerified: false,
-      isFeatured: false,
-      isBreaking: false,
-      pinnedNowReading: false,
-      pinnedNowReadingRank: 0,
+      heroFocalX: rewriteHeroFocalX,
+      heroFocalY: rewriteHeroFocalY,
+      status: rewriteStatus,
+      scheduledAt: typeof rewrite.scheduledAt === 'string' ? rewrite.scheduledAt : '',
+      slug: rewrite.slug || slugify(title),
+      authorName: rewriteAuthorName || config.defaultAuthorName,
+      authorRole: rewriteAuthorRole || config.defaultAuthorRole,
+      sourceName: rewriteSourceName || item.source?.name || '',
+      sourceUrl: rewriteSourceUrl || item.source?.itemUrl || '',
+      locationCity: rewriteLocationCity || '',
+      locationDistrict: rewriteLocationDistrict || '',
+      locationAddress: rewriteLocationAddress || '',
+      isVerified: rewrite.isVerified ?? false,
+      isFeatured: rewrite.isFeatured ?? false,
+      isBreaking: rewrite.isBreaking ?? false,
+      pinnedNowReading: rewrite.pinnedNowReading ?? false,
+      pinnedNowReadingRank: typeof rewrite.pinnedNowReadingRank === 'number' ? rewrite.pinnedNowReadingRank : 0,
       flags: ensureStringArray(rewrite.flags),
       confidence: typeof rewrite.confidence === 'number' ? rewrite.confidence : null,
     });
