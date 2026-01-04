@@ -41,6 +41,7 @@ export type Article = {
   publishedAt: string; // ISO date string
   updatedAt?: string;
   heroImage: string;
+  heroImageAuthor?: string;
   readingTime: number; // minutes
   isBreaking?: boolean;
   isFeatured?: boolean;

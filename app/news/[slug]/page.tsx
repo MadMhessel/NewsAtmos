@@ -100,7 +100,7 @@ export default function ArticlePage() {
               />
             </div>
             <figcaption className="mt-3 text-xs font-medium text-muted-foreground">
-              Фото: Источник / Пресс-служба
+              Фото: {article.heroImageAuthor || 'Источник / Пресс-служба'}
             </figcaption>
           </figure>
         )}

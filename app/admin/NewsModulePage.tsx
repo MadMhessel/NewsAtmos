@@ -30,6 +30,8 @@ type IncomingItem = {
     tags?: string[];
     content?: ContentBlock[];
     heroImage?: string;
+    heroImageSquare?: string;
+    heroImageAuthor?: string;
     flags?: string[];
     confidence?: number;
   };
@@ -101,6 +103,17 @@ const normalizeBlocks = (blocks?: ContentBlock[]) => {
     }
     if (block.type === 'quote') {
       return { ...block, value: block.value || '', author: block.author || '' };
+    }
+    if (block.type === 'callout') {
+      return {
+        ...block,
+        kind: block.kind || 'info',
+        title: block.title || '',
+        value: block.value || '',
+      } as ContentBlock;
+    }
+    if (block.type === 'divider') {
+      return { type: 'divider' } as ContentBlock;
     }
     return { ...block, value: (block as any).value || '' } as ContentBlock;
   });
@@ -409,6 +422,10 @@ const NewsModulePage: React.FC = () => {
     tags: string[];
     content: ContentBlock[];
     heroImage: string;
+    heroImageSquare: string;
+    heroImageAuthor: string;
+    heroFocalX: number | null;
+    heroFocalY: number | null;
     status: ArticleStatus;
     scheduledAt: string;
     slug: string;
@@ -599,6 +616,10 @@ const NewsModulePage: React.FC = () => {
       tags: ensureStringArray(rewrite.tags),
       content: normalizeBlocks(rewrite.content),
       heroImage: rewrite.heroImage || item.image || '',
+      heroImageSquare: rewrite.heroImageSquare || '',
+      heroImageAuthor: rewrite.heroImageAuthor || '',
+      heroFocalX: null,
+      heroFocalY: null,
       status: 'draft',
       scheduledAt: '',
       slug: slugify(title),
@@ -628,6 +649,10 @@ const NewsModulePage: React.FC = () => {
       tags: ensureStringArray(item.tags),
       content: normalizeBlocks(item.content),
       heroImage: item.heroImage || '',
+      heroImageSquare: item.heroImageSquare || '',
+      heroImageAuthor: item.heroImageAuthor || '',
+      heroFocalX: item.heroFocal?.x ?? null,
+      heroFocalY: item.heroFocal?.y ?? null,
       status: item.status || 'draft',
       scheduledAt: item.scheduledAt || '',
       slug: item.slug || '',
@@ -756,6 +781,10 @@ const NewsModulePage: React.FC = () => {
     const now = new Date().toISOString();
     const category = config.allowedCategories.find((c) => c.slug === draft.category) || config.allowedCategories[0];
     const slug = draft.slug || slugify(draft.title) || base?.slug || `news-${Date.now()}`;
+    const heroFocal =
+      typeof draft.heroFocalX === 'number' && typeof draft.heroFocalY === 'number'
+        ? { x: draft.heroFocalX, y: draft.heroFocalY }
+        : undefined;
     return {
       id: base?.id || Math.random().toString(36).slice(2, 10),
       slug,
@@ -769,6 +798,9 @@ const NewsModulePage: React.FC = () => {
       updatedAt: now,
       createdAt: base?.createdAt || now,
       heroImage: draft.heroImage,
+      heroImageSquare: draft.heroImageSquare || base?.heroImageSquare,
+      heroImageAuthor: draft.heroImageAuthor || base?.heroImageAuthor,
+      heroFocal: heroFocal || base?.heroFocal,
       readingTime: base?.readingTime || 3,
       status: draft.status || base?.status || 'draft',
       scheduledAt: draft.status === 'scheduled' ? (draft.scheduledAt || base?.scheduledAt) : undefined,
@@ -834,6 +866,8 @@ const NewsModulePage: React.FC = () => {
     const text = [editorDraft.title, editorDraft.excerpt, editorDraft.content.map((b) => {
       if (b.type === 'list') return b.items.join('\n');
       if (b.type === 'quote') return `${b.value}${b.author ? ` — ${b.author}` : ''}`;
+      if (b.type === 'callout') return [b.title, b.value].filter(Boolean).join('\n');
+      if (b.type === 'divider') return '—';
       return (b as any).value || '';
     }).join('\n\n')].filter(Boolean).join('\n\n');
 
@@ -852,6 +886,10 @@ const NewsModulePage: React.FC = () => {
       newBlock = { type: 'list', items: [''] };
     } else if (type === 'quote') {
       newBlock = { type: 'quote', value: '', author: '' };
+    } else if (type === 'divider') {
+      newBlock = { type: 'divider' };
+    } else if (type === 'callout') {
+      newBlock = { type: 'callout', kind: 'info', title: '', value: '' };
     } else {
       newBlock = { type, value: '' } as ContentBlock;
     }
@@ -2068,6 +2106,56 @@ const NewsModulePage: React.FC = () => {
                     <label className="text-sm font-medium">Обложка</label>
                     <Input value={editorDraft.heroImage} onChange={(e) => setEditorDraft({ ...editorDraft, heroImage: e.target.value })} />
                   </div>
+                  <div>
+                    <label className="text-sm font-medium">Автор изображения</label>
+                    <Input
+                      value={editorDraft.heroImageAuthor}
+                      onChange={(e) => setEditorDraft({ ...editorDraft, heroImageAuthor: e.target.value })}
+                      placeholder="Источник / Пресс-служба"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Квадратная обложка</label>
+                    <Input
+                      value={editorDraft.heroImageSquare}
+                      onChange={(e) => setEditorDraft({ ...editorDraft, heroImageSquare: e.target.value })}
+                      placeholder="URL квадратной версии"
+                    />
+                  </div>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <div>
+                      <label className="text-sm font-medium">Фокус X</label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min={0}
+                        max={1}
+                        value={editorDraft.heroFocalX ?? ''}
+                        onChange={(e) =>
+                          setEditorDraft({
+                            ...editorDraft,
+                            heroFocalX: e.target.value === '' ? null : Math.min(1, Math.max(0, Number(e.target.value))),
+                          })
+                        }
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Фокус Y</label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min={0}
+                        max={1}
+                        value={editorDraft.heroFocalY ?? ''}
+                        onChange={(e) =>
+                          setEditorDraft({
+                            ...editorDraft,
+                            heroFocalY: e.target.value === '' ? null : Math.min(1, Math.max(0, Number(e.target.value))),
+                          })
+                        }
+                      />
+                    </div>
+                  </div>
 
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Промо</label>
@@ -2121,6 +2209,10 @@ const NewsModulePage: React.FC = () => {
                   <div>
                     <label className="text-sm font-medium">Автор</label>
                     <Input value={editorDraft.authorName} onChange={(e) => setEditorDraft({ ...editorDraft, authorName: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Роль автора</label>
+                    <Input value={editorDraft.authorRole} onChange={(e) => setEditorDraft({ ...editorDraft, authorRole: e.target.value })} />
                   </div>
 
                   <div className="grid gap-3 md:grid-cols-2">
@@ -2199,7 +2291,7 @@ const NewsModulePage: React.FC = () => {
                   <div className="flex items-center justify-between">
                     <h3 className="text-sm font-semibold">Контент</h3>
                     <div className="flex flex-wrap gap-2">
-                      {(['paragraph', 'heading', 'list', 'quote'] as ContentBlock['type'][]).map((type) => (
+                      {(['paragraph', 'heading', 'list', 'quote', 'divider', 'callout'] as ContentBlock['type'][]).map((type) => (
                         <Button key={type} size="sm" variant="secondary" onClick={() => addBlock(type)}>
                           <Plus className="w-3 h-3 mr-1" /> {blockTypeLabels[type]}
                         </Button>
@@ -2256,7 +2348,36 @@ const NewsModulePage: React.FC = () => {
                             />
                           </div>
                         )}
-                        {block.type !== 'list' && block.type !== 'quote' && (
+                        {block.type === 'callout' && (
+                          <div className="space-y-2">
+                            <div className="grid gap-2 md:grid-cols-2">
+                              <select
+                                className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                                value={block.kind}
+                                onChange={(e) => updateBlock(idx, { kind: e.target.value as 'info' | 'warning' | 'important' } as ContentBlock)}
+                              >
+                                <option value="info">Инфо</option>
+                                <option value="warning">Важно</option>
+                                <option value="important">Срочно</option>
+                              </select>
+                              <Input
+                                value={block.title || ''}
+                                onChange={(e) => updateBlock(idx, { title: e.target.value } as ContentBlock)}
+                                placeholder="Заголовок (опционально)"
+                              />
+                            </div>
+                            <textarea
+                              className="w-full min-h-[72px] rounded-md border border-input bg-background px-3 py-2 text-sm"
+                              value={block.value}
+                              onChange={(e) => updateBlock(idx, { value: e.target.value } as ContentBlock)}
+                              placeholder="Текст врезки"
+                            />
+                          </div>
+                        )}
+                        {block.type === 'divider' && (
+                          <div className="py-3 text-xs text-muted-foreground">Разделитель</div>
+                        )}
+                        {block.type !== 'list' && block.type !== 'quote' && block.type !== 'callout' && block.type !== 'divider' && (
                           <textarea
                             className="w-full min-h-[72px] rounded-md border border-input bg-background px-3 py-2 text-sm"
                             value={(block as any).value}
@@ -2297,6 +2418,8 @@ const NewsModulePage: React.FC = () => {
                               tags: editorDraft.tags,
                               content: editorDraft.content,
                               heroImage: editorDraft.heroImage,
+                              heroImageSquare: editorDraft.heroImageSquare,
+                              heroImageAuthor: editorDraft.heroImageAuthor,
                               flags: editorDraft.flags,
                               confidence: editorDraft.confidence ?? undefined,
                             },
