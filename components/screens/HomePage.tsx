@@ -23,8 +23,8 @@ export default function HomePage() {
   const latestLiveUpdates = primaryLive
     ? liveService.getUpdatesByStreamId(primaryLive.id, 'desc').slice(0, 6)
     : []
-  // Fetch more articles to accommodate pagination
-  const allLatest = newsService.getLatest(60, featured?.id)
+  // Fetch all articles to accommodate pagination of older news
+  const allLatest = newsService.getAll().filter(article => article.id !== featured?.id)
 
   const breakingForTicker = breaking.map(b => ({
     ...b,
