@@ -3,6 +3,7 @@ import { Article, ArticleStatus, Category } from './types';
 
 const STORAGE_KEY = 'cc_articles_v1';
 const API_URL = '/api/news.php';
+const FALLBACK_NEWS_URLS = ['/data/news.json', '/api/data/news.json', '/news.json', '/api/news.json'];
 const UPLOAD_URL = '/api/upload.php';
 const VIEW_URL = '/api/view.php';
 
@@ -34,6 +35,18 @@ const isDevHost = (): boolean => {
   if (typeof window === 'undefined') return false;
   const host = window.location.hostname;
   return host === 'localhost' || host === '127.0.0.1' || host.endsWith('.local');
+};
+
+const fetchNewsJson = async (url: string): Promise<Article[] | null> => {
+  try {
+    const response = await fetch(url, { cache: 'no-store' });
+    if (!response.ok) return null;
+    const data = await response.json();
+    if (!Array.isArray(data)) return null;
+    return normalizeArticles(data);
+  } catch {
+    return null;
+  }
 };
 
 function normalizeArticle(a: any): Article {
@@ -80,21 +93,40 @@ export const newsService = {
     if (isInitialized) return;
 
     try {
-        const response = await fetch(API_URL);
-        if (response.ok) {
-            const data = await response.json();
-            if (Array.isArray(data) && data.length > 0) {
-                articlesCache = normalizeArticles(data);
-            } else {
-                // Если файл пустой или 404, используем моки
-                console.log('No data on server, using mocks');
-                articlesCache = normalizeArticles([...MOCK_ARTICLES]);
-            }
+        const response = await fetch(API_URL, { cache: 'no-store' });
+        if (!response.ok) throw new Error('API not available');
+
+        const data = await response.json();
+        if (Array.isArray(data) && data.length > 0) {
+            articlesCache = normalizeArticles(data);
         } else {
-            throw new Error('API not available');
+            let fallbackArticles: Article[] | null = null;
+            for (const url of FALLBACK_NEWS_URLS) {
+              fallbackArticles = await fetchNewsJson(url);
+              if (fallbackArticles && fallbackArticles.length > 0) break;
+            }
+
+            if (fallbackArticles && fallbackArticles.length > 0) {
+              articlesCache = fallbackArticles;
+            } else if (Array.isArray(data)) {
+              articlesCache = normalizeArticles(data);
+            } else {
+              console.log('No data on server, using mocks');
+              articlesCache = normalizeArticles([...MOCK_ARTICLES]);
+            }
         }
     } catch (e) {
         console.warn('Backend connection failed (dev mode?), using localStorage/Mocks', e);
+        let fallbackArticles: Article[] | null = null;
+        for (const url of FALLBACK_NEWS_URLS) {
+          fallbackArticles = await fetchNewsJson(url);
+          if (fallbackArticles && fallbackArticles.length > 0) break;
+        }
+        if (fallbackArticles && fallbackArticles.length > 0) {
+          articlesCache = fallbackArticles;
+          isInitialized = true;
+          return;
+        }
         // Fallback to LocalStorage
         const stored = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEY) : null;
         if (stored) {
