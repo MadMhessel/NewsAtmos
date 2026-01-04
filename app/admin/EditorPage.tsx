@@ -387,9 +387,11 @@ export default function EditorPage() {
     const [excerpt, setExcerpt] = useState('');
     const [categorySlug, setCategorySlug] = useState(categories[0].slug);
     const [authorName, setAuthorName] = useState('Редакция');
+    const [authorRole, setAuthorRole] = useState('Редактор');
     const [heroImage, setHeroImage] = useState('');
     const [heroImageSquare, setHeroImageSquare] = useState('');
     const [heroFocal, setHeroFocal] = useState<{ x: number; y: number } | undefined>(undefined);
+    const [heroImageAuthor, setHeroImageAuthor] = useState('');
     const [content, setContent] = useState<ContentBlock[]>([]);
     const [tags, setTags] = useState<string[]>([]);
     const [tagInput, setTagInput] = useState('');
@@ -431,9 +433,11 @@ export default function EditorPage() {
         if (draft.excerpt !== undefined) setExcerpt(draft.excerpt);
         if (draft.category?.slug) setCategorySlug(draft.category.slug);
         if (draft.author?.name) setAuthorName(draft.author.name);
+        if (draft.author?.role) setAuthorRole(draft.author.role);
         if (draft.heroImage !== undefined) setHeroImage(draft.heroImage || '');
         if (draft.heroImageSquare !== undefined) setHeroImageSquare(draft.heroImageSquare || '');
         if (draft.heroFocal !== undefined) setHeroFocal(draft.heroFocal);
+        if (draft.heroImageAuthor !== undefined) setHeroImageAuthor(draft.heroImageAuthor || '');
         if (draft.content) setContent(draft.content);
         if (draft.tags) setTags(draft.tags);
         if (draft.source?.name !== undefined) setSourceName(draft.source?.name || '');
@@ -459,9 +463,11 @@ export default function EditorPage() {
             setExcerpt(article.excerpt);
             setCategorySlug(article.category.slug);
             setAuthorName(article.author.name);
+            setAuthorRole(article.author.role || 'Редактор');
             setHeroImage(article.heroImage);
             setHeroImageSquare(article.heroImageSquare || '');
             setHeroFocal(article.heroFocal);
+            setHeroImageAuthor(article.heroImageAuthor || '');
             setContent(article.content);
             setTags(article.tags || []);
             setSourceName(article.source?.name || '');
@@ -519,9 +525,11 @@ export default function EditorPage() {
         excerpt,
         categorySlug,
         authorName,
+        authorRole,
         heroImage,
         heroImageSquare,
         heroFocal,
+        heroImageAuthor,
         content,
         tags,
         sourceName,
@@ -552,7 +560,7 @@ export default function EditorPage() {
         }, AUTOSAVE_INTERVAL_MS);
 
         return () => clearInterval(interval);
-    }, [saveState, id, title, slug, excerpt, categorySlug, authorName, heroImage, heroImageSquare, heroFocal, content, tags, sourceName, sourceUrl, locationCity, locationDistrict, locationAddress, isVerified, status, scheduledAt, isFeatured, isBreaking, pinnedNowReading, pinnedNowReadingRank]);
+    }, [saveState, id, title, slug, excerpt, categorySlug, authorName, authorRole, heroImage, heroImageSquare, heroFocal, heroImageAuthor, content, tags, sourceName, sourceUrl, locationCity, locationDistrict, locationAddress, isVerified, status, scheduledAt, isFeatured, isBreaking, pinnedNowReading, pinnedNowReadingRank]);
 
     const buildLocalDraft = () => {
         const safeHeroImage = heroImage.startsWith('data:image/') ? '' : heroImage;
@@ -562,10 +570,11 @@ export default function EditorPage() {
             slug,
             excerpt,
             category: categories.find(c => c.slug === categorySlug) || categories[0],
-            author: { name: authorName, role: 'Редактор' },
+            author: { name: authorName, role: authorRole || 'Редактор' },
             heroImage: safeHeroImage,
             heroImageSquare: safeHeroSquare,
             heroFocal,
+            heroImageAuthor,
             content,
             tags,
             source: { name: sourceName, url: sourceUrl },
@@ -644,13 +653,14 @@ export default function EditorPage() {
             content,
             category: categories.find(c => c.slug === categorySlug) || categories[0],
             tags,
-            author: { name: authorName, role: 'Редактор' },
+            author: { name: authorName, role: authorRole || 'Редактор' },
             publishedAt,
             updatedAt: nowIso,
             createdAt: existingArticle?.createdAt || nowIso,
             heroImage,
             heroImageSquare,
             heroFocal,
+            heroImageAuthor,
             readingTime: 3,
             isFeatured,
             isBreaking,
@@ -845,11 +855,12 @@ export default function EditorPage() {
         content: content.length ? content : [{ type: 'paragraph', value: 'Текст статьи...' }],
         category: categories.find(c => c.slug === categorySlug) || categories[0],
         tags,
-        author: { name: authorName || 'Редакция', role: 'Редактор' },
+        author: { name: authorName || 'Редакция', role: authorRole || 'Редактор' },
         publishedAt: new Date().toISOString(),
         heroImage,
         heroImageSquare,
         heroFocal,
+        heroImageAuthor,
         readingTime: 3,
         isFeatured,
         isBreaking,
@@ -1101,6 +1112,26 @@ export default function EditorPage() {
                                 className="w-full bg-transparent border-b border-border py-1 text-sm font-medium focus:border-accent outline-none"
                                 value={authorName}
                                 onChange={e => setAuthorName(e.target.value)}
+                            />
+                        </div>
+
+                        <div className="grid gap-2">
+                            <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Роль автора</label>
+                            <input
+                                className="w-full bg-transparent border-b border-border py-1 text-sm font-medium focus:border-accent outline-none"
+                                value={authorRole}
+                                onChange={e => setAuthorRole(e.target.value)}
+                                placeholder="Редактор"
+                            />
+                        </div>
+
+                        <div className="grid gap-2">
+                            <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Автор изображения</label>
+                            <input
+                                className="w-full bg-transparent border-b border-border py-1 text-sm"
+                                value={heroImageAuthor}
+                                onChange={(e) => setHeroImageAuthor(e.target.value)}
+                                placeholder="Источник / Пресс-служба"
                             />
                         </div>
                     </div>
