@@ -49,13 +49,26 @@ const fetchNewsJson = async (url: string): Promise<Article[] | null> => {
   }
 };
 
+const validStatuses: ArticleStatus[] = ['draft', 'review', 'scheduled', 'published', 'archived', 'trash'];
+
+const normalizeDate = (...values: Array<string | undefined | null>): string => {
+  for (const value of values) {
+    if (!value) continue;
+    const date = new Date(value);
+    if (!Number.isNaN(date.getTime())) return date.toISOString();
+  }
+  return new Date().toISOString();
+};
+
 function normalizeArticle(a: any): Article {
   const views = typeof a?.views === 'number' && isFinite(a.views) ? Math.max(0, Math.floor(a.views)) : 0;
   const pinnedNowReading = !!a?.pinnedNowReading;
   const pinnedNowReadingRank = typeof a?.pinnedNowReadingRank === 'number' && isFinite(a.pinnedNowReadingRank)
     ? Math.max(0, Math.floor(a.pinnedNowReadingRank))
     : 0;
-  const status = (a?.status as ArticleStatus) || 'published';
+  const statusCandidate = a?.status as ArticleStatus | undefined;
+  const status = validStatuses.includes(statusCandidate as ArticleStatus) ? statusCandidate : 'published';
+  const publishedAt = normalizeDate(a?.publishedAt, a?.createdAt, a?.updatedAt, a?.scheduledAt);
 
   return {
     ...a,
@@ -63,6 +76,7 @@ function normalizeArticle(a: any): Article {
     pinnedNowReading,
     pinnedNowReadingRank,
     status,
+    publishedAt,
   } as Article;
 }
 
